@@ -1,5 +1,4 @@
 import os
-import glob
 import time
 import torch
 import torch.optim as optim
@@ -17,11 +16,7 @@ config['phase'] = 'train'                                       # or: 'test'
 config['gpu'] = '0,1'
 config['device'] = torch.device('cuda:'+ config['gpu'])         # or: torch.device('cpu')
 
-### PATHS ###
-### MODEL ### 
-config['dataset_name'] = 'adni'
-config['num_timestep'] = 1
-config['model_type'] = 'single_timestep'
+### MODEL ###
 config['model_name'] = 'SingleTimestep3DCNN'
 
 config['ckpt_timelabel'] = None
@@ -32,47 +27,33 @@ else:
     time_label = str(localtime.tm_year) + '_' + str(localtime.tm_mon) + '_' + str(localtime.tm_mday) + \
                 '_' + str(localtime.tm_hour) + '_' + str(localtime.tm_min)
 
-# config['ckpt_path'] = '../ckpt/' + 'test'
 config['ckpt_path'] = os.path.join('../ckpt/', config['model_name'], time_label)
 if not os.path.exists(config['ckpt_path']):
     os.makedirs(config['ckpt_path'])
 
-### SET-UP ###
-config['ckpt_name'] = 'model_best.pth.tar'                      # only for testing ...      'epoch041.pth.tar' 
+### DATA PARAMETERS ###
 config['img_size'] = (64, 64, 64)
-config['cls_type'] = 'binary'                                   # 'binary' or 'multiple'
+
+### TEST PARAMETERS ###
+config['ckpt_name'] = 'model_best.pth.tar'                      # only for testing ...      'epoch041.pth.tar'
+
+### TRAIN PARAMETERS ###
 config['batch_size'] = 32
 config['num_fold'] = 5
-config['fold'] = 0
-
-### PARAMETERS ### 
-config['shuffle'] = (not config['oversample'])
 config['epochs'] = 60
 config['regularizer'] = 'l2'                                    # can toggle
-config['lambda_reg'] = 0.01                                     # can toggle
-config['lambda_balance'] = 0
+config['lambda_reg'] = 0.01
 config['clip_grad'] = True
 config['clip_grad_value'] = 1.
 config['lr'] = 0.0005                                           # can toggle
-
-config['cls_intermediate'] = [1.,1.,1.,1.,1.]    # in lstm should be in ascending etc
-config['lambda_mid'] = 0.8  # should be less than 1.
-
-config['lr'] = 0.0005
+config['loss_weighted'] = False
+config['loss_ratios'] = None
 
 ### NOT ACTIVELY USED / TURNED OFF ###
-config['meta_only'] = False                                     # True if 'Metadata' in config['model_name'] else False
-config['meta_path'] = ''
-                                    # should be less than 1. only used for cls_intermediate != None
 config['static_fe'] = False
 config['pretrained'] = False
 config['pretrained_path'] = None
 config['continue_train'] = False
-config['oversample'] = False
-config['oversample_ratios'] = None
-config['loss_weighted'] = False
-config['loss_ratios'] = None
-config['focal_loss'] = False
 
 if config['phase'] == 'train':
     save_config_file(config)
@@ -95,7 +76,6 @@ loss_cls_fn, pred_fn = define_loss_fn(data=trainData, num_cls=config['num_cls'],
 
 
 def train(model, trainData, valData, testData, loss_cls_fn, pred_fn, config):
-    # pdb.set_trace()
     if hasattr(model, 'feature_extractor') and config['static_fe']:
         for param in model.feature_extractor.parameters():
             param.requires_grad = False
@@ -103,20 +83,8 @@ def train(model, trainData, valData, testData, loss_cls_fn, pred_fn, config):
     optimizer = optim.Adam(model.parameters(), lr=config['lr'])
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=10, min_lr=1e-5)   # dynamic change lr according to val_loss
 
-    # continue training
-    start_epoch = 0
-    if config['continue_train']:
-        ckpt_filenames = sorted(glob.glob(config['ckpt_path']+'/epoch*.pth.tar'))
-        ckpt_last_filename = os.path.basename(ckpt_filenames[-1])
-        [optimizer, scheduler, model], start_epoch = load_checkpoint_by_key([optimizer, scheduler, model],
-                                                                            config['ckpt_path'],
-                                                                            ['optimizer', 'scheduler', 'model'],
-                                                                            config['device'],
-                                                                            ckpt_last_filename)
-    elif config['pretrained']:
-        if 'Metadata' not in config['model_name']:
-            # transfer_model_from_keras_to_pytorch(model, config['pretrained_keras_path'], config['pretrained_path'])
-            model = load_pretrained_model(model, config['device'], ckpt_path=config['pretrained_path'])
+    if config['pretrained']:
+        model = load_pretrained_model(model, config['device'], ckpt_path=config['pretrained_path'])
 
     global_iter = 0
     monitor_metric_best = 0
@@ -130,7 +98,6 @@ def train(model, trainData, valData, testData, loss_cls_fn, pred_fn, config):
         loss_all = 0
         for iter, sample in enumerate(trainData.loader, 0):
             global_iter += 1
-            # pdb.set_trace()
 
             img = sample['image'].to(config['device'], dtype=torch.float)
             label = sample['label'].to(config['device'], dtype=torch.long)
@@ -158,7 +125,6 @@ def train(model, trainData, valData, testData, loss_cls_fn, pred_fn, config):
         loss_cls_mean = loss_cls_all / iter_per_epoch
         loss_mean = loss_all / iter_per_epoch
 
-        # pdb.set_trace()
         info = 'epoch%03d_gbiter%06d' % (epoch, global_iter)
 
         print('Epoch: [%3d] Training Results' % (epoch))
@@ -196,7 +162,6 @@ def test(model, testData, loss_cls_fn, pred_fn, config):
     [model], _ = load_checkpoint_by_key([model], config['ckpt_path'], ['model'], config['device'], config['ckpt_name'])
     evaluate(model, testData, loss_cls_fn, pred_fn, config, info='Test')
 
-
 def evaluate(model, testData, loss_cls_fn, pred_fn, config, info='Default'):
     model.eval()
     loss_cls_all = 0
@@ -233,18 +198,8 @@ def evaluate(model, testData, loss_cls_fn, pred_fn, config, info='Default'):
     print_result_stat(stat)
     if info != 'Test':
         save_result_stat(stat, config, info=info)
-    if info == 'Test' and config['cls_type'] == 'binary':
+    else:
         save_prediction(pred_all, label_all, testData.dataset.label_raw, config)
-    
-    # pred_mean_all = []
-    # if len(output) > 1:
-    #     pred_mean_all = np.concatenate(pred_mean_all, axis=0)
-    #     stat = compute_result_stat(pred_mean_all, label_all, config['num_cls'])
-    #     print('/n print vote prediction')
-    #     print_result_stat(stat)
-    # metric = loss_cls_mean + 0.3 * np.abs(stat['sensitivity'][0]-stat['specificity'][0])
-    # metric = loss_cls_mean
-    # pdb.set_trace()
 
     metric = stat['accuracy'][0]
     return metric

@@ -340,70 +340,6 @@ class NCANDADataset(LongitudinalDataset):
         #pdb.set_trace()
         return self.label_dict_reg
 
-
-'''
-Class to manage all data
-'''
-class Data(object):
-    def __init__(self, dataset_name='ncanda', dataset_type='single_timestep', num_timestep=1, oversample=False, oversample_ratios=None,
-            data_path='', csv_path='', meta_path='', img_size=(64, 64, 64), cls_type='binary',
-            set='train', num_fold=4, fold=0, batch_size=32, shuffle=False, num_workers=8, meta_only=False, others=[None]):
-        if oversample and shuffle:
-            raise ValueError('Cannot do shuffle and oversample sampler at the same time')
-        if oversample and cls_type == 'regression':
-            raise ValueError('Do not support sampler for regression label')
-
-        if dataset_name == 'ncanda':
-            data_train_path = os.path.join(data_path, 'ncanda_augmented_new.h5')
-            data_test_path = os.path.join(data_path, 'ncanda_original_new.h5')
-            if cls_type == 'regression':
-                label_path = os.path.join(data_path, 'ncanda_label_LifeDrnk.npy')
-                label_path_cls = os.path.join(data_path, 'ncanda_label.npy')
-            else:
-                label_path = os.path.join(data_path, 'ncanda_label.npy')
-                label_path_cls = None
-            label_all_path = os.path.join(data_path, 'ncanda_label_all.npy')
-            gender_path = os.path.join(data_path, 'ncanda_gender.npy')
-            date_interval_path = None
-            self.dataset = NCANDADataset(data_train_path, data_test_path, label_path, label_all_path, date_interval_path, gender_path, cls_type, num_timestep, set, num_fold, fold, label_path_cls)
-            #self.dataset =  LongitudinalDataset(data_path, csv_path, meta_path, img_size, num_timestep, cls_type, set, num_fold, fold, meta_only)
-
-        elif dataset_name == 'adni':
-            data_train_path = os.path.join(data_path, 'adni_augmented_large.h5')
-            data_test_path = os.path.join(data_path, 'adni_original_large.h5')
-            label_path = os.path.join(data_path, 'adni_label_large.npy')
-            label_all_path = os.path.join(data_path, 'adni_label_all_large.npy')
-            date_interval_path = os.path.join(data_path, 'adni_date_interval_large.npy')
-            self.dataset = ADNIDataset(data_train_path, data_test_path, label_path, label_all_path, date_interval_path, cls_type, num_timestep, set, num_fold, fold, others[0])
-
-        elif dataset_name == 'lab':
-            data_train_path = os.path.join(data_path, 'lab_augmented.h5')
-            data_test_path = os.path.join(data_path, 'lab_original.h5')
-            label_path = os.path.join(data_path, 'lab_label.npy')
-            label_all_path = None
-            date_interval_path = os.path.join(data_path, 'lab_date_interval.npy')
-            self.dataset = LABDataset(data_train_path, data_test_path, label_path, label_all_path, date_interval_path, cls_type, num_timestep, set, num_fold, fold, others[0])
-
-        if oversample == False:
-            self.sampler = None
-        else:
-            weights = self._compute_sampler_weights(oversample_ratios)
-            self.sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, self.dataset.num_subj)
-
-        self.loader = DataLoader(self.dataset, batch_size=batch_size, shuffle=shuffle,
-                                num_workers=num_workers, sampler=self.sampler)
-
-    def _compute_sampler_weights(self, oversample_ratios):
-        if oversample_ratios == None:
-            cls_ratio = np.array(self.dataset.cls_ratio)
-            oversample_ratios = 1.0 / cls_ratio
-            oversample_ratios[np.isfinite(oversample_ratios)==False] = 0
-        elif len(oversample_ratios) != self.dataset.num_cls:
-            raise ValueError('Wrong oversample ratio')
-        print('Oversample ratio', oversample_ratios)
-        weights = [oversample_ratios[int(label)] for label in self.dataset.label]
-        return weights
-
 def save_config_file(config):
     file_path = os.path.join(config['ckpt_path'], 'config.txt')
     f = open(file_path, 'w')
@@ -436,7 +372,6 @@ def define_loss_fn(data, num_cls=2, loss_weighted=False, loss_ratios=None):
     # diff num_cls
     if num_cls == 0:
         loss_cls_fn = torch.nn.MSELoss()
-        def weighted_mse_loss(pred, label):
             res = torch.mean((0.2+label)*(pred-label)**2)
             return res
         #loss_cls_fn = weighted_mse_loss
@@ -572,34 +507,23 @@ def compute_loss(model, loss_cls_fn, pred_fn, config, output, pred, labels, mask
     if len(output) > 1:
         pred_all = pred_fn(output[1])
 
-    #pdb.set_trace()
-    if config['focal_loss']:
-        loss_cls_final = focal_loss_fn(pred, label, config)
-    else:
-        if not config['classify_by_label_all']:    #old mode
-            loss_cls_final = loss_cls_fn(output[0], label).mean()
-        else:    # new mode
-            if len(output) > 1:
-                if config['num_cls'] == 2:
-                    output1_re = output[1]
-                    label_ts_re = label_ts
-                    mask_re = mask
-                else:
-                    output1_re = output[1].view(-1, output[0].shape[-1])    # (bs, ts, num_cls) -> (bs*ts, num_cls)
-                    label_ts_re = label_ts.view(-1)
-                    mask_re = mask.view(-1)
-                loss_cls_final = loss_cls_fn(output1_re[mask_re==1], label_ts_re[mask_re==1]).mean()
+    if not config['classify_by_label_all']:    #old mode
+        loss_cls_final = loss_cls_fn(output[0], label).mean()
+    else:    # new mode
+        if len(output) > 1:
+            if config['num_cls'] == 2:
+                output1_re = output[1]
+                label_ts_re = label_ts
+                mask_re = mask
             else:
-                loss_cls_final = loss_cls_fn(output[0], label_ts).mean()
+                output1_re = output[1].view(-1, output[0].shape[-1])    # (bs, ts, num_cls) -> (bs*ts, num_cls)
+                label_ts_re = label_ts.view(-1)
+                mask_re = mask.view(-1)
+            loss_cls_final = loss_cls_fn(output1_re[mask_re==1], label_ts_re[mask_re==1]).mean()
+        else:
+            loss_cls_final = loss_cls_fn(output[0], label_ts).mean()
     loss += loss_cls_final
     losses.append(loss_cls_final)
-    # adding date interval loss
-    if 'Date' in config['model_name']:
-        pred_interval = output[3]
-        #pdb.set_trace()
-        loss_interval = torch.nn.MSELoss()(pred_interval.squeeze(-1), interval)
-        loss += config['lambda_interval'] * loss_interval
-        losses.append(loss_interval)
     # adding loss given by intermediate timestep output, in mode: all ts predict final/future label
     if not config['classify_by_label_all'] and len(output) > 1 and config['cls_intermediate']:
         label_reshape = reshape_output_and_label(output[1], label)
@@ -608,46 +532,14 @@ def compute_loss(model, loss_cls_fn, pred_fn, config, output, pred, labels, mask
         loss_cls_mid = (loss_cls_mid * mask * ts_weight).mean()
         loss += config['lambda_mid'] * loss_cls_mid
         losses.append(loss_cls_mid)
-    # adding consistency loss, later prediction worser than previous
-    if len(output) > 1 and config['lambda_consistent'] > 0:
-        #pdb.set_trace()
-        label_reshape = reshape_output_and_label(output[1], label)
-        loss_cons = loss_consistency_fn(pred_all, mask, label_reshape, config)
-        loss += config['lambda_consistent'] * loss_cons
-        losses.append(loss_cons)
     # adding l2-loss_regularization
     if config['regularizer']:
-        if config['model_name'] == 'MultipleTimestepConcatMultipleOutput' and config['cls_intermediate']:
-            loss_reg = loss_regularization_fn([model.fc1, model.fc2, model.fc3, model.fc4], config['regularizer'])
-        elif config['model_name'] == 'MultipleTimestepLSTM' or config['model_name'] == 'MultipleTimestepGRU':
-            loss_reg = loss_regularization_fn([model.lstm, model.fc1, model.fc2, model.fc3], config['regularizer'])
-        elif config['model_name'] == 'MultipleTimestepLSTMAvgPool' or config['model_name'] == 'MultipleTimestepGRUAvgPool':
-            loss_reg = loss_regularization_fn([model.lstm, model.fc1, model.fc2, model.fc2_pool, model.fc3], config['regularizer'])
-        elif config['model_name'] == 'MultipleTimestepLSTMMetadata':
-            loss_reg = loss_regularization_fn([model.lstm, model.fc1, model.fc3], config['regularizer'])
-        elif config['model_name'] == 'MultipleTimestepConcatMetadata':
-            loss_reg = loss_regularization_fn([model.lstm, model.fc1, model.fc3], config['regularizer'])
-        elif config['model_name'] == 'MultipleTimestepLSTMMultimodal':
-            loss_reg = loss_regularization_fn([model.lstm, model.fc1, model.fc1_meta, model.fc2, model.fc3], config['regularizer'])
-        else:
-            loss_reg = loss_regularization_fn([model.fc1, model.fc2, model.fc3], config['regularizer'])
+        loss_reg = loss_regularization_fn([model.fc1, model.fc2, model.fc3], config['regularizer'])
         loss += config['lambda_reg'] * loss_reg
         losses.append(loss_reg)
-    # adding balance loss to make sensitivity=specificity
-    if config['lambda_balance'] > 0:
-        # pdb.set_trace()
-        pred_bi = torch.where(pred>=torch.tensor(0.5).to(config['device']), torch.tensor(1.).to(config['device']), torch.tensor(0.).to(config['device']))
-        tp = ((pred_bi == label) & (label == 1)).sum().float()
-        tn = ((pred_bi == label) & (label == 0)).sum().float()
-        fn = ((pred_bi != label) & (label == 1)).sum().float()
-        fp = ((pred_bi != label) & (label == 0)).sum().float()
-        loss_balance = torch.abs(tp / (tp + fn) - tn / (tn + fp))
-        loss += config['lambda_balance'] * loss_balance
-        losses.append(loss_balance)
     return loss, losses
 
 def vote_prediction(pred, mask):
-    # pdb.set_trace()
     # pred_bi = np.where(pred>=0.5, 1, 0).squeeze(-1) * mask
     # pred_new = [1 if pred_bi[i,:].sum()>=0.5*mask[i,:].sum() else 0 for i in range(pred_bi.shape[0])]
     pred_new = (pred.squeeze(-1) * mask).sum(1) / mask.sum(1)
@@ -686,20 +578,12 @@ def load_pretrained_model(model, device, ckpt_path):
 
     if 'feature_extractor' in checkpoint.keys():
         model.feature_extractor.load_state_dict(checkpoint['feature_extractor'])
-    # if 'fc1' in checkpoint.keys():
-    #     model.fc1.load_state_dict(checkpoint['fc1'])
-    # if 'fc2' in checkpoint.keys():
-    #     model.fc2.load_state_dict(checkpoint['fc2'])
     else:
         print("loaded checkpoint from '{}' (epoch: {}, monitor metric: {})".format(ckpt_path, \
                 checkpoint['epoch'], checkpoint['monitor_metric']))
-        #pdb.set_trace()
         pretrained_model_state = checkpoint['model']
-        if 'LSTM' in ckpt_path or 'GRU' in ckpt_path:
-            key_list = ['feature_extractor', 'fc1', 'fc2', 'fc2_pool', 'lstm']
-        else:
-            key_list = ['feature_extractor']
 
+        key_list = ['feature_extractor']
         def has_keywords(k, key_list):
             for key in key_list:
                 if key in k:

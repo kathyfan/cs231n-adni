@@ -82,7 +82,6 @@ class SingleTimestep3DCNN(nn.Module):
         self.init_model()
 
     def init_model(self):
-        #pdb.set_trace()
         for layer in [self.fc1, self.fc2, self.fc3]:
             for name, weight in layer.named_parameters():
                 if 'weight' in name:
