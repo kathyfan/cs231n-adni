@@ -58,7 +58,6 @@ config['clip_grad'] = True
 config['clip_grad_value'] = 1.
 config['lr'] = 0.0005                                           # can toggle
 
-
 ### NOT ACTIVELY USED / TURNED OFF ###
 config['meta_only'] = False                                     # True if 'Metadata' in config['model_name'] else False
 config['meta_path'] = ''
