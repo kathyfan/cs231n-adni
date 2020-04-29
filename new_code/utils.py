@@ -1,11 +1,9 @@
 import os
 import shutil
-import time
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
-import nibabel as nib
 import sklearn.metrics
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import confusion_matrix, balanced_accuracy_score
@@ -293,49 +291,6 @@ class ADNIDataset(LongitudinalDataset):
     def modify_multiple_label(self):
         print('Notice: label order in label and label_all are different')
         #for key in self.label_dict_all.keys()
-
-class LABDataset(LongitudinalDataset):
-    def __init__(self, data_train_path, data_test_path, label_path, label_all_path=None, date_interval_path=None, cls_type='binary',
-                num_timestep=4, set='train', num_fold=5, fold=0, remove_cls='H'):
-        super().__init__(data_train_path=data_train_path, data_test_path=data_test_path, label_path=label_path, label_all_path=label_all_path, cls_type=cls_type,
-                num_timestep=num_timestep, set=set, num_fold=num_fold, fold=fold)
-
-        if date_interval_path:
-            self.date_interval_dict = np.load(date_interval_path).item()
-        else:
-            self.date_interval_dict = None
-
-        if self.cls_type == 'binary':
-            self.label_dict, self.label_all_dict = self.multiple_to_binary(remove_cls=remove_cls)
-        elif self.cls_type == 'multiple':
-            raise ValueError('Do not support multi-class for LAB dataset')
-
-        self.num_subj, self.num_cls, self.subj_id_select, self.subj_label_select = self._load_selected_fold()
-        self.compute_data_stats()
-
-    def multiple_to_binary(self, remove_cls='H'):
-        remove_key = []
-        #pdb.set_trace()
-        self.label_all_dict = {}
-        for key in self.label_dict.keys():
-            if remove_cls == 'H':
-                if self.label_dict[key] == 2:   #H
-                    remove_key.append(key)
-                elif self.label_dict[key] == 3:     #HE
-                    self.label_dict[key] = 1
-            elif remove_cls == 'E':
-                if self.label_dict[key] == 1:   #E
-                    remove_key.append(key)
-                elif self.label_dict[key] in [2, 3]:     #H/HE
-                    self.label_dict[key] = 1
-            else:
-                raise ValueError('Not support remove '+ remove_cls)
-            self.label_all_dict[key] = np.repeat(self.label_dict[key], self.num_timestep)
-        print('Remove', len(remove_key), remove_cls)
-        for key in remove_key:
-            del self.label_dict[key]
-            del self.label_all_dict[key]
-        return self.label_dict, self.label_all_dict
 
 
 class NCANDADataset(LongitudinalDataset):
@@ -723,93 +678,6 @@ def load_checkpoint_by_key(values, checkpoint_dir, keys, device, ckpt_name='mode
     else:
         raise ValueError('No correct checkpoint')
     return values, epoch
-
-def define_keras_model():
-    import keras
-    from keras.models import Sequential, Model
-    from keras.layers import Activation, Dense, Dropout, Flatten, UpSampling3D, Input, ZeroPadding3D, Lambda, Reshape
-    from keras.layers.normalization import BatchNormalization
-    from keras.layers import Conv3D, MaxPooling3D
-    from keras import regularizers
-
-    ft_bank_baseline = 16
-    latent_dim = 16
-    L2_reg = 0.1
-
-    input_image = Input(shape=(32,64,64,1), name='input_image')
-    feature = Conv3D(ft_bank_baseline, activation='relu', kernel_size=(3, 3, 3),padding='same')(input_image)
-    feature = BatchNormalization()(feature)
-    feature = MaxPooling3D(pool_size=(2, 2, 2))(feature)
-
-    feature = Conv3D(ft_bank_baseline*2, activation='relu', kernel_size=(3, 3, 3),padding='same')(feature)
-    feature = BatchNormalization()(feature)
-    feature = MaxPooling3D(pool_size=(2, 2, 2))(feature)
-
-    feature = Conv3D(ft_bank_baseline*4, activation='relu', kernel_size=(3, 3, 3),padding='same')(feature)
-    feature = BatchNormalization()(feature)
-    feature = MaxPooling3D(pool_size=(2, 2, 2))(feature)
-
-    feature = Conv3D(ft_bank_baseline*4, activation='relu', kernel_size=(3, 3, 3),padding='same')(feature)
-    feature = BatchNormalization()(feature)
-    feature = MaxPooling3D(pool_size=(2, 2, 2))(feature)
-
-    feature_dense = Flatten()(feature)
-    encoder = Model(input_image, feature_dense)
-
-    input_feature_clf = Input(shape=(2048,), name='input_feature_dense')
-    feature_clf = Dense(latent_dim*4, activation='tanh',kernel_regularizer=regularizers.l2(L2_reg))(input_feature_clf)
-    feature_clf = Dense(latent_dim*2, activation='tanh',kernel_regularizer=regularizers.l2(L2_reg))(feature_clf)
-    prediction_score = Dense(1, name='prediction_score',kernel_regularizer=regularizers.l2(L2_reg))(feature_clf)
-    classifier = Model(input_feature_clf, prediction_score)
-
-    return encoder, classifier
-
-def transfer_model_from_keras_to_pytorch_fe1to3(model, pretrained_encoder, ckpt_path, state_dict):
-    # define keras model
-    pretrained_encoder.load_weights(ckpt_path)
-    for idx, layer in enumerate([model.feature_extractor.conv1, model.feature_extractor.conv2, model.feature_extractor.conv3]):
-        # conv, weight: keras (3,3,3,1,16), pytorch ()
-        layer[0].weight.data = torch.from_numpy(pretrained_encoder.layers[3*idx+1].get_weights()[0]).permute(4,3,0,1,2)
-        # conv, bias: keras (16), pytorch (16)
-        layer[0].bias.data = torch.from_numpy(pretrained_encoder.layers[3*idx+1].get_weights()[1])
-        # bn, gamma: keras [gamma, beta, mean, std], pytorch [gamma, bias]
-        layer[2].weight.data = torch.from_numpy(pretrained_encoder.layers[3*idx+2].get_weights()[0])
-        layer[2].bias.data = torch.from_numpy(pretrained_encoder.layers[3*idx+2].get_weights()[1])
-    state_dict['feature_extractor'] = model.feature_extractor.state_dict()
-    return state_dict
-
-def transfer_model_from_keras_to_pytorch_fe1to4(model, pretrained_encoder, ckpt_path, state_dict):
-    # define keras model
-    pretrained_encoder.load_weights(ckpt_path)
-    for idx, layer in enumerate([model.feature_extractor.conv1, model.feature_extractor.conv2, model.feature_extractor.conv3, model.feature_extractor.conv4]):
-        # conv, weight: keras (3,3,3,1,16), pytorch ()
-        layer[0].weight.data = torch.from_numpy(pretrained_encoder.layers[3*idx+1].get_weights()[0]).permute(4,3,0,1,2)
-        # conv, bias: keras (16), pytorch (16)
-        layer[0].bias.data = torch.from_numpy(pretrained_encoder.layers[3*idx+1].get_weights()[1])
-        # bn, gamma: keras [gamma, beta, mean, std], pytorch [gamma, bias]
-        layer[2].weight.data = torch.from_numpy(pretrained_encoder.layers[3*idx+2].get_weights()[0])
-        layer[2].bias.data = torch.from_numpy(pretrained_encoder.layers[3*idx+2].get_weights()[1])
-    state_dict['feature_extractor'] = model.feature_extractor.state_dict()
-    return state_dict
-
-def transfer_model_from_keras_to_pytorch_fc1to2(model, pretrained_classifier, ckpt_path, state_dict):
-    # define keras model
-    pretrained_classifier.load_weights(ckpt_path)
-    for idx, layer in enumerate([model.fc1, model.fc2]):
-        # linear, weight: keras (2048, 64), pytorch (64, 2048)
-        layer[0].weight.data = torch.from_numpy(pretrained_classifier.layers[idx+1].get_weights()[0]).permute(1,0)
-        # conv, bias: keras (16), pytorch (16)
-        layer[0].bias.data = torch.from_numpy(pretrained_classifier.layers[idx+1].get_weights()[1])
-    state_dict['fc1'] = model.fc1.state_dict()
-    state_dict['fc2'] = model.fc2.state_dict()
-    return state_dict
-
-def transfer_model_from_keras_to_pytorch(model, ckpt_path, save_ckpt_path):
-    state_dict = {}
-    pretrained_encoder, pretrained_classifier = define_keras_model()
-    state_dict = transfer_model_from_keras_to_pytorch_fe1to3(model, pretrained_encoder, ckpt_path[0], state_dict)
-    state_dict = transfer_model_from_keras_to_pytorch_fc1to2(model, pretrained_classifier, ckpt_path[1], state_dict)
-    torch.save(state_dict, save_ckpt_path)
 
 def load_pretrained_model(model, device, ckpt_path):
     print('load pretrained model from: ', ckpt_path)

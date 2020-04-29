@@ -14,13 +14,6 @@ config['phase'] = 'train'
 
 config['gpu'] = '0,1'
 config['device'] = torch.device('cuda:'+ config['gpu'])
-# config['device'] = torch.device('cpu')
-
-# config['dataset_name'] = 'ncanda'
-# config['data_path'] = '/fs/neurosci01/qingyuz/ncanda/ncanda_structural_img/img_64'
-# config['csv_path'] = '/fs/neurosci01/visitors/jiahongo/ncanda-alcoholism/data/NCANDA_preprocessed.csv'
-# config['meta_path'] = '/fs/neurosci01/visitors/jiahongo/ncanda-alcoholism/data/NCANDA_metadata_preprocessed_small.npy'
-# config['meta_size'] = 9
 
 config['dataset_name'] = 'adni'
 config['num_timestep'] = 1
@@ -67,41 +60,27 @@ config['clip_grad'] = True
 config['clip_grad_value'] = 1.
 
 config['cls_intermediate'] = [1.,1.,1.,1.,1.]    # in lstm should be in ascending etc
-# config['cls_intermediate'] = None
 config['lambda_mid'] = 0.8  # should be less than 1.
 
-# config['lr'] = 0.0002
 config['lr'] = 0.0005
-# config['lr'] = 0.002
-# config['lr_fe'] = 0.0002
 config['static_fe'] = False
 
 config['pretrained'] = False
-config['pretrained_path'] = '/fs/neurosci01/visitors/jiahongo/ncanda-alcoholism/ckpt/pretrained/pretrained_adni_fe1to3.pth.tar'
+config['pretrained_path'] = None
 
 if config['phase'] == 'train':
     save_config_file(config)
 
-
-trainData= Data(dataset_type=config['model_type'], num_timestep=config['num_timestep'], oversample=config['oversample'], oversample_ratios=config['oversample_ratios'],
-        data_path=config['data_path'], csv_path=config['csv_path'], meta_path=config['meta_path'], img_size=config['img_size'], cls_type=config['cls_type'],
-        set='train', num_fold=config['num_fold'], fold=config['fold'], batch_size=config['batch_size'], shuffle=config['shuffle'], num_workers=0, meta_only=config['meta_only'])
-config['num_cls'] = trainData.dataset.num_cls
-
-valData = Data(dataset_type=config['model_type'], num_timestep=config['num_timestep'], oversample=False, oversample_ratios=None,
-        data_path=config['data_path'], csv_path=config['csv_path'], meta_path=config['meta_path'], img_size=config['img_size'], cls_type=config['cls_type'],
-        set='val', num_fold=config['num_fold'], fold=config['fold'], batch_size=config['batch_size'], shuffle=False, num_workers=0, meta_only=config['meta_only'])
-
-testData = Data(dataset_type=config['model_type'], num_timestep=config['num_timestep'], oversample=False, oversample_ratios=None,
-        data_path=config['data_path'], csv_path=config['csv_path'], meta_path=config['meta_path'], img_size=config['img_size'], cls_type=config['cls_type'],
-        set='test', num_fold=config['num_fold'], fold=config['fold'], batch_size=config['batch_size'], shuffle=False, num_workers=0, meta_only=config['meta_only'])
-
+# TODO: get data from data.py
+trainData = None
+valData = None
+testData = None
 
 # model - only using SingleTimestep3DCNN
 input_img_size = (config['img_size'][0]//2, config['img_size'][1], config['img_size'][2])
 if config['model_name'] == 'SingleTimestep3DCNN':
     model = SingleTimestep3DCNN(in_num_ch=1, img_size=input_img_size, inter_num_ch=16, fc_num_ch=16,
-                                kernel_size=3, conv_act='relu', fc_act='tanh', num_cls=config['num_cls']).to(config['device'])
+                                conv_act='relu', fc_act='tanh', num_cls=config['num_cls']).to(config['device'])
 else:
     raise ValueError('The model is not implemented')
 
