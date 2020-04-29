@@ -9,18 +9,20 @@ from model import *
 from utils import *
 
 config = {}
-# config['phase'] = 'test'
-config['phase'] = 'train'
 
+### STATE ### 
+config['phase'] = 'train'                                       # or: 'test'
+
+### DEVICE ###
 config['gpu'] = '0,1'
-config['device'] = torch.device('cuda:'+ config['gpu'])
+config['device'] = torch.device('cuda:'+ config['gpu'])         # or: torch.device('cpu')
 
+### PATHS ###
+### MODEL ### 
 config['dataset_name'] = 'adni'
 config['num_timestep'] = 1
 config['model_type'] = 'single_timestep'
 config['model_name'] = 'SingleTimestep3DCNN'
-
-config['meta_only'] = True if 'Metadata' in config['model_name'] else False
 
 config['ckpt_timelabel'] = None
 if config['ckpt_timelabel'] and config['phase'] == 'test':
@@ -35,38 +37,42 @@ config['ckpt_path'] = os.path.join('../ckpt/', config['model_name'], time_label)
 if not os.path.exists(config['ckpt_path']):
     os.makedirs(config['ckpt_path'])
 
-config['ckpt_name'] = 'model_best.pth.tar'  # only for testing
-# config['ckpt_name'] = 'epoch041.pth.tar'  # only for testing
+### SET-UP ###
+config['ckpt_name'] = 'model_best.pth.tar'                      # only for testing ...      'epoch041.pth.tar' 
 config['img_size'] = (64, 64, 64)
-config['cls_type'] = 'binary'               # 'binary' or 'multiple'
+config['cls_type'] = 'binary'                                   # 'binary' or 'multiple'
 config['batch_size'] = 32
 config['num_fold'] = 5
 config['fold'] = 0
 
-config['oversample'] = False
-config['oversample_ratios'] = None
-
-config['loss_weighted'] = False
-config['loss_ratios'] = None
-config['focal_loss'] = False
-
+### PARAMETERS ### 
 config['shuffle'] = (not config['oversample'])
 config['epochs'] = 60
-config['continue_train'] = False
-config['regularizer'] = 'l2'                    # can toggle
-config['lambda_reg'] = 0.01                     # can toggle
+config['regularizer'] = 'l2'                                    # can toggle
+config['lambda_reg'] = 0.01                                     # can toggle
 config['lambda_balance'] = 0
 config['clip_grad'] = True
 config['clip_grad_value'] = 1.
+config['lr'] = 0.0005                                           # can toggle
 
 config['cls_intermediate'] = [1.,1.,1.,1.,1.]    # in lstm should be in ascending etc
 config['lambda_mid'] = 0.8  # should be less than 1.
 
 config['lr'] = 0.0005
-config['static_fe'] = False
 
+### NOT ACTIVELY USED / TURNED OFF ###
+config['meta_only'] = False                                     # True if 'Metadata' in config['model_name'] else False
+config['meta_path'] = ''
+                                    # should be less than 1. only used for cls_intermediate != None
+config['static_fe'] = False
 config['pretrained'] = False
 config['pretrained_path'] = None
+config['continue_train'] = False
+config['oversample'] = False
+config['oversample_ratios'] = None
+config['loss_weighted'] = False
+config['loss_ratios'] = None
+config['focal_loss'] = False
 
 if config['phase'] == 'train':
     save_config_file(config)
@@ -90,8 +96,6 @@ loss_cls_fn, pred_fn = define_loss_fn(data=trainData, num_cls=config['num_cls'],
 
 def train(model, trainData, valData, testData, loss_cls_fn, pred_fn, config):
     # pdb.set_trace()
-    # if hasattr(model, 'feature_extractor'):
-    #     optimizer_fe = optim.Adam(model.feature_extractor.parameters(), lr=config['lr_fe'])
     if hasattr(model, 'feature_extractor') and config['static_fe']:
         for param in model.feature_extractor.parameters():
             param.requires_grad = False
@@ -131,14 +135,9 @@ def train(model, trainData, valData, testData, loss_cls_fn, pred_fn, config):
             img = sample['image'].to(config['device'], dtype=torch.float)
             label = sample['label'].to(config['device'], dtype=torch.long)
             mask = sample['mask'].to(config['device'], dtype=torch.float)
-            metadata = sample['metadata'].to(config['device'], dtype=torch.float)
 
             if config['num_cls'] == 2:
                 label = label.unsqueeze(1).type(torch.float)
-            if 'Metadata' in config['model_name']:
-                output = model(metadata, mask)
-            elif  'Multimodal' in config['model_name']:
-                output = model(img, metadata, mask)
             else:
                 output = model(img, mask)   # output is a list, [final_output, intermediate_output]
             pred = pred_fn(output[0])
@@ -203,7 +202,6 @@ def evaluate(model, testData, loss_cls_fn, pred_fn, config, info='Default'):
     loss_cls_all = 0
     loss_all = 0
     pred_all = []
-    pred_mean_all = []
     label_all = []
     with torch.no_grad():   # else, the memory explode during model(img)
         for half in ['left', 'right']:
@@ -212,11 +210,8 @@ def evaluate(model, testData, loss_cls_fn, pred_fn, config, info='Default'):
                 img = sample['image'].to(config['device'], dtype=torch.float)
                 label = sample['label'].to(config['device'], dtype=torch.long)
                 mask = sample['mask'].to(config['device'], dtype=torch.float)
-                metadata = sample['metadata'].to(config['device'], dtype=torch.float)
                 if config['num_cls'] == 2:
                     label = label.unsqueeze(1).type(torch.float)
-                if 'Metadata' in config['model_name']:
-                    output = model(metadata, mask)
                 else:
                     output = model(img, mask)
                 pred = pred_fn(output[0])
@@ -240,6 +235,8 @@ def evaluate(model, testData, loss_cls_fn, pred_fn, config, info='Default'):
         save_result_stat(stat, config, info=info)
     if info == 'Test' and config['cls_type'] == 'binary':
         save_prediction(pred_all, label_all, testData.dataset.label_raw, config)
+    
+    # pred_mean_all = []
     # if len(output) > 1:
     #     pred_mean_all = np.concatenate(pred_mean_all, axis=0)
     #     stat = compute_result_stat(pred_mean_all, label_all, config['num_cls'])
@@ -248,8 +245,8 @@ def evaluate(model, testData, loss_cls_fn, pred_fn, config, info='Default'):
     # metric = loss_cls_mean + 0.3 * np.abs(stat['sensitivity'][0]-stat['specificity'][0])
     # metric = loss_cls_mean
     # pdb.set_trace()
-    metric = stat['accuracy'][0]
 
+    metric = stat['accuracy'][0]
     return metric
 
 if config['phase'] == 'train':
