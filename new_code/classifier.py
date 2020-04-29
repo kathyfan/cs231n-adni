@@ -23,34 +23,13 @@ config['device'] = torch.device('cuda:'+ config['gpu'])
 # config['meta_size'] = 9
 
 config['dataset_name'] = 'adni'
-
-
-# config['num_timestep'] = 1
-config['num_timestep'] = 5
-if config['num_timestep'] == 1:
-    config['model_type'] = 'single_timestep'
-else:
-    config['model_type'] = 'multiple_timestep'
-
+config['num_timestep'] = 1
+config['model_type'] = 'single_timestep'
 config['model_name'] = 'SingleTimestep3DCNN'
-# config['model_name'] = 'MultipleTimestepConcat'
-# config['model_name'] = 'MultipleTimestepConcatMultipleOutput'
-# config['model_name'] = 'MultipleTimestepLSTM'
-# config['model_name'] = 'MultipleTimestepLSTMAvgPool'
-# config['model_name'] = 'MultipleTimestepLSTMMetadata'
-# config['model_name'] = 'MultipleTimestepConcatMetadata'
-# config['model_name'] = 'MultipleTimestepLSTMMultimodal'
-# config['skip_missing'] = True   # only for lstm
-config['skip_missing'] = False   # only for lstm
-# config['augment_random_drop'] = True
 
 config['meta_only'] = True if 'Metadata' in config['model_name'] else False
 
-# config['info'] = 'cat_'
-# config['info'] = 'view_'
-
-config['ckpt_timelabel'] = '2020_1_27_13_4'
-# config['ckpt_timelabel'] = None
+config['ckpt_timelabel'] = None
 if config['ckpt_timelabel'] and config['phase'] == 'test':
     time_label = config['ckpt_timelabel']
 else:
@@ -66,36 +45,24 @@ if not os.path.exists(config['ckpt_path']):
 config['ckpt_name'] = 'model_best.pth.tar'  # only for testing
 # config['ckpt_name'] = 'epoch041.pth.tar'  # only for testing
 config['img_size'] = (64, 64, 64)
-config['cls_type'] = 'binary'
-# config['cls_type'] = 'multiple'
+config['cls_type'] = 'binary'               # 'binary' or 'multiple'
 config['batch_size'] = 32
 config['num_fold'] = 5
 config['fold'] = 0
 
 config['oversample'] = False
-config['oversample_ratios'] = [0.4, 0.6]
-# config['oversample_ratios'] = [0.3, 0.7]
-# config['oversample_ratios'] = [0.2, 0.3, 0.6, 0.6]
-# config['oversample_ratios'] = None
+config['oversample_ratios'] = None
 
 config['loss_weighted'] = False
-# config['loss_ratios'] = [1, 1.8]
-config['loss_ratios'] = [1, 0.7]
-# config['loss_ratios'] = [1, 1, 2, 2]
-# config['loss_ratios'] = None
-# config['focal_loss'] = True
+config['loss_ratios'] = None
 config['focal_loss'] = False
 
 config['shuffle'] = (not config['oversample'])
 config['epochs'] = 60
 config['continue_train'] = False
-config['regularizer'] = 'l2'
-# config['regularizer'] = None
-# config['lambda_reg'] = 0.1
-config['lambda_reg'] = 0.01
+config['regularizer'] = 'l2'                    # can toggle
+config['lambda_reg'] = 0.01                     # can toggle
 config['lambda_balance'] = 0
-config['init_lstm'] = True
-# config['clip_grad'] = False
 config['clip_grad'] = True
 config['clip_grad_value'] = 1.
 
@@ -109,14 +76,12 @@ config['lr'] = 0.0005
 # config['lr_fe'] = 0.0002
 config['static_fe'] = False
 
-config['pretrained'] = True
-config['pretrained_keras_path'] = ['/fs/neurosci01/qingyuz/3dcnn/ADNI/res_raw/encoder.h5', '/fs/neurosci01/qingyuz/3dcnn/ADNI/res_raw/classifier.h5']
-# config['pretrained_path'] = '/fs/neurosci01/visitors/jiahongo/ncanda-alcoholism/ckpt/pretrained/pretrained_adni_large_all.pth.tar'
+config['pretrained'] = False
 config['pretrained_path'] = '/fs/neurosci01/visitors/jiahongo/ncanda-alcoholism/ckpt/pretrained/pretrained_adni_fe1to3.pth.tar'
-# config['pretrained_path'] = '/fs/neurosci01/visitors/jiahongo/ncanda-alcoholism/ckpt/SingleTimestep3DCNN/2020_1_20_16_17/model_best.pth.tar'
 
 if config['phase'] == 'train':
     save_config_file(config)
+
 
 trainData= Data(dataset_type=config['model_type'], num_timestep=config['num_timestep'], oversample=config['oversample'], oversample_ratios=config['oversample_ratios'],
         data_path=config['data_path'], csv_path=config['csv_path'], meta_path=config['meta_path'], img_size=config['img_size'], cls_type=config['cls_type'],
@@ -131,35 +96,12 @@ testData = Data(dataset_type=config['model_type'], num_timestep=config['num_time
         data_path=config['data_path'], csv_path=config['csv_path'], meta_path=config['meta_path'], img_size=config['img_size'], cls_type=config['cls_type'],
         set='test', num_fold=config['num_fold'], fold=config['fold'], batch_size=config['batch_size'], shuffle=False, num_workers=0, meta_only=config['meta_only'])
 
-# model
+
+# model - only using SingleTimestep3DCNN
 input_img_size = (config['img_size'][0]//2, config['img_size'][1], config['img_size'][2])
 if config['model_name'] == 'SingleTimestep3DCNN':
     model = SingleTimestep3DCNN(in_num_ch=1, img_size=input_img_size, inter_num_ch=16, fc_num_ch=16,
                                 kernel_size=3, conv_act='relu', fc_act='tanh', num_cls=config['num_cls']).to(config['device'])
-elif config['model_name'] == 'MultipleTimestepConcat':
-    model = MultipleTimestepConcat(in_num_ch=1, img_size=input_img_size, inter_num_ch=16, fc_num_ch=16,
-                                kernel_size=3, conv_act='relu', fc_act='tanh', num_cls=config['num_cls'], num_timestep=config['num_timestep']).to(config['device'])
-elif config['model_name'] == 'MultipleTimestepConcatMultipleOutput':
-    model = MultipleTimestepConcatMultipleOutput(in_num_ch=1, img_size=input_img_size, inter_num_ch=16, fc_num_ch=16,
-                                kernel_size=3, conv_act='relu', fc_act='tanh', num_cls=config['num_cls'], num_timestep=config['num_timestep']).to(config['device'])
-elif config['model_name'] == 'MultipleTimestepLSTM':
-    model = MultipleTimestepLSTM(in_num_ch=1, img_size=input_img_size, inter_num_ch=16, fc_num_ch=16,
-                                kernel_size=3, conv_act='relu', fc_act='tanh', num_cls=config['num_cls'],
-                                num_timestep=config['num_timestep'], skip_missing=config['skip_missing'], init_lstm=config['init_lstm']).to(config['device'])
-elif config['model_name'] == 'MultipleTimestepLSTMAvgPool':
-    model = MultipleTimestepLSTMAvgPool(in_num_ch=1, img_size=input_img_size, inter_num_ch=16, fc_num_ch=16,
-                                kernel_size=3, conv_act='relu', fc_act='tanh', num_cls=config['num_cls'],
-                                num_timestep=config['num_timestep'], skip_missing=config['skip_missing'], init_lstm=config['init_lstm']).to(config['device'])
-elif config['model_name'] == 'MultipleTimestepConcatMetadata':
-    model = MultipleTimestepConcatMetadata(in_num_ch=1, meta_size=config['meta_size'], fc_num_ch=16, fc_act='relu', num_cls=config['num_cls'],
-                                num_timestep=config['num_timestep']).to(config['device'])
-elif config['model_name'] == 'MultipleTimestepLSTMMetadata':
-    model = MultipleTimestepLSTMMetadata(in_num_ch=1, meta_size=config['meta_size'], fc_num_ch=16, fc_act='relu', num_cls=config['num_cls'],
-                                num_timestep=config['num_timestep'], skip_missing=config['skip_missing'], init_lstm=config['init_lstm']).to(config['device'])
-elif config['model_name'] == 'MultipleTimestepLSTMMultimodal':
-    model = MultipleTimestepLSTMMultimodal(in_num_ch=1, img_size=input_img_size, meta_size=config['meta_size'], inter_num_ch=16, fc_num_ch=16,
-                                kernel_size=3, conv_act='relu', fc_act='tanh', num_cls=config['num_cls'],
-                                num_timestep=config['num_timestep'], skip_missing=config['skip_missing'], init_lstm=config['init_lstm']).to(config['device'])
 else:
     raise ValueError('The model is not implemented')
 
@@ -296,8 +238,6 @@ def evaluate(model, testData, loss_cls_fn, pred_fn, config, info='Default'):
                     label = label.unsqueeze(1).type(torch.float)
                 if 'Metadata' in config['model_name']:
                     output = model(metadata, mask)
-                elif  'Multimodal' in config['model_name']:
-                    output = model(img, metadata, mask)
                 else:
                     output = model(img, mask)
                 pred = pred_fn(output[0])
