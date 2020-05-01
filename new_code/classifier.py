@@ -70,9 +70,6 @@ loss_cls_fn, pred_fn = define_loss_fn(data=trainData], loss_weighted=config['los
 
 
 def train(model, trainData, valData, loss_cls_fn, pred_fn, config):
-    if hasattr(model, 'feature_extractor') and config['static_fe']:
-        for param in model.feature_extractor.parameters():
-            param.requires_grad = False
 
     optimizer = optim.Adam(model.parameters(), lr=config['lr'])
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=10, min_lr=1e-5)   # dynamic change lr according to val_loss
@@ -80,7 +77,7 @@ def train(model, trainData, valData, loss_cls_fn, pred_fn, config):
     if config['pretrained']:
         model = load_pretrained_model(model, config['device'], ckpt_path=config['pretrained_path'])
 
-    global_iter = 0
+    global_iter = 0 # iteration number; cumulative across epochs
     monitor_metric_best = 0
     iter_per_epoch = len(trainData.loader)
     for epoch in range(start_epoch+1, config['epochs']):
