@@ -546,11 +546,11 @@ def vote_prediction(pred, mask):
     return pred_new
 
 def save_checkpoint(state, is_best, checkpoint_dir):
-    print("save checkpoint")
+    print("saving checkpoint")
     filename = checkpoint_dir+'/epoch'+str(state['epoch']).zfill(3)+'.pth.tar'
     torch.save(state, filename)
     if is_best:
-        print("update best checkpoint")
+        print("updating best checkpoint")
         shutil.copyfile(filename, checkpoint_dir+'/model_best.pth.tar')
 
 def load_checkpoint_by_key(values, checkpoint_dir, keys, device, ckpt_name='model_best.pth.tar'):

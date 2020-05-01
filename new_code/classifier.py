@@ -17,8 +17,6 @@ config['gpu'] = '0,1'
 config['device'] = torch.device('cuda:'+ config['gpu'])         # or: torch.device('cpu')
 
 ### MODEL ###
-config['model_name'] = 'SingleTimestep3DCNN'
-
 config['ckpt_timelabel'] = None
 if config['ckpt_timelabel'] and config['phase'] == 'test':
     time_label = config['ckpt_timelabel']
@@ -55,27 +53,23 @@ config['pretrained'] = False
 config['pretrained_path'] = None
 config['continue_train'] = False
 
-if config['phase'] == 'train':
-    save_config_file(config)
+save_config_file(config)
 
 # TODO: get data from data.py
 trainData = None
 valData = None
 testData = None
 
-# model - only using SingleTimestep3DCNN
-input_img_size = (config['img_size'][0]//2, config['img_size'][1], config['img_size'][2])
-if config['model_name'] == 'SingleTimestep3DCNN':
-    model = SingleTimestep3DCNN(in_num_ch=1, img_size=input_img_size, inter_num_ch=16, fc_num_ch=16,
-                                conv_act='relu', fc_act='tanh', num_cls=config['num_cls']).to(config['device'])
-else:
-    raise ValueError('The model is not implemented')
+# model
+input_img_size = (config['img_size'][0], config['img_size'][1], config['img_size'][2])
+model = SingleTimestep3DCNN(in_num_ch=1, img_size=input_img_size, inter_num_ch=16, fc_num_ch=16,
+                                conv_act='relu', fc_act='tanh').to(config['device'])
 
 # loss
-loss_cls_fn, pred_fn = define_loss_fn(data=trainData, num_cls=config['num_cls'], loss_weighted=config['loss_weighted'], loss_ratios=config['loss_ratios'])
+loss_cls_fn, pred_fn = define_loss_fn(data=trainData], loss_weighted=config['loss_weighted'], loss_ratios=config['loss_ratios'])
 
 
-def train(model, trainData, valData, testData, loss_cls_fn, pred_fn, config):
+def train(model, trainData, valData, loss_cls_fn, pred_fn, config):
     if hasattr(model, 'feature_extractor') and config['static_fe']:
         for param in model.feature_extractor.parameters():
             param.requires_grad = False
@@ -89,8 +83,8 @@ def train(model, trainData, valData, testData, loss_cls_fn, pred_fn, config):
     global_iter = 0
     monitor_metric_best = 0
     iter_per_epoch = len(trainData.loader)
-    start_time = time.time()
     for epoch in range(start_epoch+1, config['epochs']):
+        start_time = time.time()
         model.train()
         pred_all = []
         label_all = []
@@ -104,7 +98,7 @@ def train(model, trainData, valData, testData, loss_cls_fn, pred_fn, config):
             mask = sample['mask'].to(config['device'], dtype=torch.float)
 
             if config['num_cls'] == 2:
-                label = label.unsqueeze(1).type(torch.float)
+            label = label.unsqueeze(1).type(torch.float)
             else:
                 output = model(img, mask)   # output is a list, [final_output, intermediate_output]
             pred = pred_fn(output[0])
@@ -126,7 +120,7 @@ def train(model, trainData, valData, testData, loss_cls_fn, pred_fn, config):
         loss_mean = loss_all / iter_per_epoch
 
         info = 'epoch%03d_gbiter%06d' % (epoch, global_iter)
-
+        print('Training time for epoch %3d: %3d' % (epoch, time.time() - start_time))
         print('Epoch: [%3d] Training Results' % (epoch))
         pred_all = np.concatenate(pred_all, axis=0)
         label_all = np.concatenate(label_all, axis=0)
@@ -140,23 +134,20 @@ def train(model, trainData, valData, testData, loss_cls_fn, pred_fn, config):
         monitor_metric = evaluate(model, valData, loss_cls_fn, pred_fn, config, info='val')
         scheduler.step(monitor_metric)
 
-        print('Epoch: [%3d] Testing Results' % (epoch))
-        _ = evaluate(model, testData, loss_cls_fn, pred_fn, config, info='test')
-
         print('lr: ', optimizer.param_groups[0]['lr'])
 
-        # save ckp
+        # save ckp of either 1) best epoch 2) every 10th epoch 3) last epoch
         if monitor_metric_best < monitor_metric or epoch % 10 == 1 or epoch == config['epochs']-1:
-            is_best = (monitor_metric_best < monitor_metric)
-            monitor_metric_best = monitor_metric if is_best == True else monitor_metric_best
+            is_best = (monitor_metric_best < monitor_metric) # want: high monitor_metric
+            if is_best:
+                monitor_metric_best = monitor_metric
             state = {'epoch': epoch, 'monitor_metric': monitor_metric, \
                     'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict(), \
                     'model': model.state_dict()}
             save_checkpoint(state, is_best, config['ckpt_path'])
-            if is_best:
-                print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
 def test(model, testData, loss_cls_fn, pred_fn, config):
+    # Retrieve the trained model to test on
     if not os.path.exists(config['ckpt_path']):
         raise ValueError('Testing phase, no checkpoint folder')
     [model], _ = load_checkpoint_by_key([model], config['ckpt_path'], ['model'], config['device'], config['ckpt_name'])
@@ -205,8 +196,7 @@ def evaluate(model, testData, loss_cls_fn, pred_fn, config, info='Default'):
     return metric
 
 if config['phase'] == 'train':
-    train(model, trainData, valData, testData, loss_cls_fn, pred_fn, config)
+    train(model, trainData, valData, loss_cls_fn, pred_fn, config)
     save_result_figure(config)
 else:
-    # save_result_figure(config)
     test(model, testData, loss_cls_fn, pred_fn, config)

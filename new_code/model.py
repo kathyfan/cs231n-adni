@@ -47,24 +47,18 @@ class FeatureExtractor(nn.Module):
 
 class SingleTimestep3DCNN(nn.Module):
     def __init__(self, in_num_ch=1, img_size=(32,64,64), inter_num_ch=16, fc_num_ch=16,
-                conv_act='relu', fc_act='tanh', num_cls=2, fe_arch='baseline'):
+                conv_act='relu', fc_act='tanh'):
         super(SingleTimestep3DCNN, self).__init__()
 
-        if fe_arch == 'baseline':
-            self.feature_extractor = FeatureExtractor(in_num_ch, inter_num_ch,conv_act)
-            num_feat = int(inter_num_ch * (img_size[0]*img_size[1]*img_size[2]) / ((2**4)**3))
-        else:
-            raise ValueError('No implementation of ', fe_arch)
+        self.feature_extractor = FeatureExtractor(in_num_ch, inter_num_ch,conv_act)
+        num_feat = int(inter_num_ch * (img_size[0]*img_size[1]*img_size[2]) / ((2**4)**3))
 
         if fc_act == 'tanh':
             fc_act_layer = nn.Tanh()
         else:
             raise ValueError('No implementation of ', fc_act)
 
-        if num_cls == 2 or num_cls == 0:
-            num_output = 1
-        else:
-            num_output = num_cls
+        num_output = 1
         self.num_cls = num_cls
 
         self.fc1 = nn.Sequential(
