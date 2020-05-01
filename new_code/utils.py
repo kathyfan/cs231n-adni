@@ -105,19 +105,6 @@ def reshape_output_and_label(output, label):
     label = label.repeat(1, output.shape[1], 1)  # (bs, ts, cls)
     return label
 
-def focal_loss_fn(pred, label, config):
-    if config['cls_type'] != 'binary':
-        raise ValueError('No implementation for focal loss multiple class')
-    gamma = 2.
-    eps = 1e-8
-    if config['loss_weighted']:
-        alpha = config['loss_ratios'][1] / config['loss_ratios'][0]
-    else:
-        alpha = 1.
-    loss_neg = (1.-label) * torch.pow(pred, gamma) * torch.log(1.-pred+eps)
-    loss_pos = label * alpha * torch.pow(1-pred, gamma) * torch.log(pred+eps)
-    return -(loss_neg + loss_pos).mean()
-
 def compute_loss_ordinary(model, output, pred, labels, mask, config):
     loss = 0
     losses = []
@@ -383,20 +370,3 @@ def save_result_figure(config):
     plt.legend(linename, loc='upper right')
     plt.show()
     plt.savefig(os.path.join(config['ckpt_path'], 'loss.png'))
-
-def overlay_saliency_map(img, saliency, save_path, show_both=False):
-    #pdb.set_trace()
-    cmap = mpl.cm.get_cmap('jet')
-    img -= img.min()
-    img /= img.max()
-    #img = np.clip(img, a_min=0)
-    if show_both:
-        img = np.concatenate([img, np.ones_like(img)], axis=1)
-        saliency = np.concatenate([saliency, saliency], axis=1)
-    saliency_rgba = cmap(saliency)
-    background_hsv = skimage.color.rgb2hsv(np.dstack((img, img, img)))
-    saliency_hsv = skimage.color.rgb2hsv(saliency_rgba[:,:,:3])
-    background_hsv[..., 0] = saliency_hsv[..., 0]
-    background_hsv[..., 1] = saliency_hsv[..., 1] * 0.5
-    fusion = skimage.color.hsv2rgb(background_hsv)
-    sci.imsave(save_path, fusion)
