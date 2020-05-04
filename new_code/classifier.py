@@ -65,19 +65,21 @@ input_img_size = (config['img_size'][0], config['img_size'][1], config['img_size
 model = SingleTimestep3DCNN(in_num_ch=1, img_size=input_img_size, inter_num_ch=16, fc_num_ch=16,
                                 conv_act='relu', fc_act='tanh').to(config['device'])
 
-# loss
-loss_cls_fn, pred_fn = define_loss_fn(data=trainData], loss_weighted=config['loss_weighted'], loss_ratios=config['loss_ratios'])
+# choose loss functions
+loss_cls_fn = torch.nn.BCEWithLogitsLoss(reduction='none')
+pred_fn = torch.nn.Sigmoid()
+
+# define optimizer and learnign rate scheduler
+optimizer = optim.Adam(model.parameters(), lr=config['lr'])
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=10, min_lr=1e-5)   # dynamic change lr according to val_loss
 
 
-def train(model, trainData, valData, loss_cls_fn, pred_fn, config):
-
-    optimizer = optim.Adam(model.parameters(), lr=config['lr'])
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=10, min_lr=1e-5)   # dynamic change lr according to val_loss
+def train(model, trainData, valData, config):
 
     if config['pretrained']:
         model = load_pretrained_model(model, config['device'], ckpt_path=config['pretrained_path'])
 
-    global_iter = 0 # iteration number; cumulative across epochs
+    iter = 0 # iteration number; cumulative across epochs
     monitor_metric_best = 0
     iter_per_epoch = len(trainData.loader)
     for epoch in range(start_epoch+1, config['epochs']):
@@ -87,15 +89,14 @@ def train(model, trainData, valData, loss_cls_fn, pred_fn, config):
         label_all = []
         loss_cls_all = 0
         loss_all = 0
-        for iter, sample in enumerate(trainData.loader, 0):
-            global_iter += 1
+        for i, sample in enumerate(trainData.loader, 0):
+            iter += 1
 
             img = sample['image'].to(config['device'], dtype=torch.float)
             label = sample['label'].to(config['device'], dtype=torch.long)
-            mask = sample['mask'].to(config['device'], dtype=torch.float)
 
             if config['num_cls'] == 2:
-            label = label.unsqueeze(1).type(torch.float)
+                label = label.unsqueeze(1).type(torch.float)
             else:
                 output = model(img, mask)   # output is a list, [final_output, intermediate_output]
             pred = pred_fn(output[0])
@@ -116,7 +117,7 @@ def train(model, trainData, valData, loss_cls_fn, pred_fn, config):
         loss_cls_mean = loss_cls_all / iter_per_epoch
         loss_mean = loss_all / iter_per_epoch
 
-        info = 'epoch%03d_gbiter%06d' % (epoch, global_iter)
+        info = 'epoch%03d_iter%06d' % (epoch, iter)
         print('Training time for epoch %3d: %3d' % (epoch, time.time() - start_time))
         print('Epoch: [%3d] Training Results' % (epoch))
         pred_all = np.concatenate(pred_all, axis=0)

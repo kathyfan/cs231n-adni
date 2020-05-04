@@ -17,27 +17,6 @@ def save_config_file(config):
         f.write(key + ': ' + str(value) + '\n')
     f.close()
 
-'''
-Define classification loss function
-'''
-def define_loss_fn(data, num_cls=2, loss_weighted=False, loss_ratios=None):
-    # diff num_cls
-    if num_cls == 0:
-        loss_cls_fn = torch.nn.MSELoss()
-            res = torch.mean((0.2+label)*(pred-label)**2)
-            return res
-        #loss_cls_fn = weighted_mse_loss
-        #pred_fn = torch.nn.ReLU()    # no identity function, already all pos, thus ReLU=identity
-        pred_fn = lambda x: x
-    elif num_cls == 2:
-        weight = 1.* weight[1] / weight[0]
-        loss_cls_fn = torch.nn.BCEWithLogitsLoss(reduction='none')
-        pred_fn = torch.nn.Sigmoid()
-    else:
-        loss_cls_fn = torch.nn.CrossEntropyLoss(reduction='none')
-        # pred_fn = torch.nn.LogSoftmax(1)
-        pred_fn = torch.nn.Softmax(-1)
-    return loss_cls_fn, pred_fn
 
 def loss_regularization_fn(layer_list, regularizer):
     los_reg = 0
