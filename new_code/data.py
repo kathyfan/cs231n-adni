@@ -11,9 +11,10 @@ import os
 import glob 
 import dcor
 
-def get_data(filename):
+def get_data():
     # Load the data
-    file_idx = np.genfromtxt(filename, dtype='str') 
+    file_idx = np.genfromtxt('./subjects_idx.txt', dtype='str') 
+    fold_idx = np.loadtxt('fold.txt')                   # to keep same-patient images together
     label = np.loadtxt('dx.txt')
     np.random.seed(seed=0)
 
