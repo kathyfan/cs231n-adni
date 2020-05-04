@@ -89,6 +89,8 @@ def train(model, trainData, valData, config):
     losses_data_epochs = []
     losses_reg_epochs = []
 
+    learning_rates = []
+
     for epoch in range(start_epoch+1, config['epochs']):
         start_time = time.time()
         model.train()
@@ -140,9 +142,9 @@ def train(model, trainData, valData, config):
         loss_mean = loss / iter_per_epoch
 
         # store final losses from this epoch
-        losses_data_epochs = losses_data[-1]
-        losses_reg_epochs = losses_reg[-1]
-        losses_total_epochs = losses_total[-1]
+        losses_data_epochs.append(losses_data[-1])
+        losses_reg_epochs.append(losses_reg[-1])
+        losses_total_epochs.append(losses_total[-1])
 
         info = 'epoch%03d_iter%06d' % (epoch, iter)
         print('Training time for epoch %3d: %3d' % (epoch, time.time() - start_time))
@@ -157,14 +159,18 @@ def train(model, trainData, valData, config):
         stat['losses_data_epochs'] = losses_data_epochs
         stat['losses_reg_epochs'] = losses_reg_epochs
         stat['losses_total_epochs'] = losses_total_epochs
-        print_result_stat(stat)
-        save_result_stat(stat, config, info=info)
 
         # perform validation for this epoch. Note that the scheduler depends on validation results.
         print('Epoch: [%3d] Validation Results' % (epoch))
         monitor_metric = evaluate(model, valData, loss_cls_fn, pred_fn, config, info='val')
         scheduler.step(monitor_metric)
-        print('lr: ', optimizer.param_groups[0]['lr'])
+        lr = optimizer.param_groups[0]['lr']
+        print('lr: ', lr)
+        learning_rates.append(lr)
+        stat['learning_rates'] = learning_rates
+
+        print_result_stat(stat)
+        save_result_stat(stat, config, info=info)
 
         # save ckp of either 1) best epoch 2) every 10th epoch 3) last epoch
         if monitor_metric_best < monitor_metric or epoch % 10 == 1 or epoch == config['epochs']-1:
