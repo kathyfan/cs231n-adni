@@ -12,30 +12,26 @@ import glob
 import dcor
 
 def get_data(filename):
-    ## Load the data
-
+    # Load the data
     file_idx = np.genfromtxt(filename, dtype='str') 
-    # fold_idx = np.loadtxt('fold.txt') #### Not necessary if we don't use CV
-    dx = np.loadtxt('dx.txt')
+    label = np.loadtxt('dx.txt')
     np.random.seed(seed=0)
 
     subject_num = file_idx.shape[0]
     print(subject_num)
 
+    data = np.zeros((subject_num, patch_x, patch_y, patch_z,1))
+
+    # Only use a patch from each input image
     patch_x = 64
     patch_y = 64
     patch_z = 64
-    min_x = 0 
-    min_y = 0 
+    min_x = 0
+    min_y = 0
     min_z = 0
-
-    augment_size = 1024
-    augment_size_val = 256
-    augment_size_test = 256
-    data = np.zeros((subject_num, patch_x, patch_y, patch_z,1))
     i = 0
-
     for subject_idx in file_idx:
+        # TODO: figure out proper filename for our repo
         filename_full = '/fs/neurosci01/qingyuz/3dcnn/ADNI/img_64_longitudinal/' + subject_idx
 
         img = nib.load(filename_full)
@@ -45,52 +41,52 @@ def get_data(filename):
         data[i,:,:,:,0] = (data[i,:,:,:,0] - np.mean(data[i,:,:,:,0])) / np.std(data[i,:,:,:,0])
         i += 1
 
+    # partition entire dataset into train, val, test
     train_data = data[:900]
-    train_dx = dx[:900]
+    train_label = label[:900]
 
-    test_data = data[900:1100]
-    test_dx = dx[900:1100]
+    val_data = data[900:1100]
+    val_label = label[900:1100]
 
     test_data = data[1100:]
-    test_dx = dx[1100:]
+    test_label = label[1100:]
 
     # Augment data
-    train_data_pos = train_data[train_dx==1];
-    train_data_neg = train_data[train_dx==0];
-
+    augment_size = 1024
+    augment_size_val = 256
+    augment_size_test = 256
+    
+    train_data_pos = train_data[train_label==1]
+    train_data_neg = train_data[train_label==0]
     train_data_pos_aug = augment_by_transformation(train_data_pos, augment_size)
     train_data_neg_aug = augment_by_transformation(train_data_neg, augment_size)
-
     train_data_aug = np.concatenate((train_data_neg_aug, train_data_pos_aug), axis=0)
-    train_dx_aug = np.zeros((augment_size * 2,))
-    train_dx_aug[augment_size:] = 1
 
-    val_data_pos = val_data[train_dx==1];
-    val_data_neg = val_data[train_dx==0];
+    train_label_aug = np.zeros((augment_size * 2,))
+    train_label_aug[augment_size:] = 1
 
+    val_data_pos = val_data[val_label==1]
+    val_data_neg = val_data[val_label==0]
     val_data_pos_aug = augment_by_transformation(val_data_pos, augment_size_val)
     val_data_neg_aug = augment_by_transformation(val_data_neg, augment_size_val)
-
     val_data_aug = np.concatenate((val_data_neg_aug, val_data_pos_aug), axis=0)
-    val_dx_aug = np.zeros((augment_size_val * 2,))
-    val_dx_aug[augment_size:] = 1
 
-    test_data_pos = test_data[test_dx==1];
-    test_data_neg = test_data[test_dx==0];
+    val_label_aug = np.zeros((augment_size_val * 2,))
+    val_label_aug[augment_size:] = 1
 
+    test_data_pos = test_data[test_label==1]
+    test_data_neg = test_data[test_label==0]
     test_data_pos_aug = augment_by_transformation(test_data_pos, augment_size_test)
     test_data_neg_aug = augment_by_transformation(test_data_neg, augment_size_test)
-
     test_data_aug = np.concatenate((test_data_neg_aug, test_data_pos_aug), axis=0)
-    test_dx_aug = np.zeros((augment_size_test * 2,))
-    test_dx_aug[augment_size_test:] = 1
 
-    return train_data, val_data, test_data
+    test_label_aug = np.zeros((augment_size_test * 2,))
+    test_label_aug[augment_size_test:] = 1
+
+    return train_data_aug, val_data_aug, test_data_aug
 
 ## Data Augmentation
 def augment_by_transformation(data,n):
-    augment_scale = 1
-
     if n <= data.shape[0]:
         return data
     else:
@@ -108,4 +104,4 @@ def augment_by_transformation(data,n):
         data = np.concatenate((data, new_data), axis=0)
         return data
 
-## print(get_data('subjects_idx.txt')) #### In case you want to check if the get_data function works properly
+# print(get_data('subjects_idx.txt')) #### In case you want to check if the get_data function works properly
