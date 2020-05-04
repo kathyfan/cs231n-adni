@@ -56,7 +56,7 @@ config['continue_train'] = False
 save_config_file(config)
 
 # split data into train, val, test
-train, val, test = get_data('./subjects_idx.txt')
+train, val, test = get_data()
 trainData = DataLoader(train, batch_size = config['batch_size'], shuffle=True)
 valData = DataLoader(val, batch_size = config['batch_size'], shuffle=True)
 testData = DataLoader(test, batch_size = config['batch_size'])
