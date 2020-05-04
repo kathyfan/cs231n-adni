@@ -40,7 +40,7 @@ config['batch_size'] = 32
 config['num_fold'] = 5
 config['epochs'] = 60
 config['regularizer'] = 'l2'                                    # can toggle
-config['lambda_reg'] = 0.01
+config['lambda_reg'] = 0.01                                     # controls how much to regularize
 config['clip_grad'] = True
 config['clip_grad_value'] = 1.
 config['lr'] = 0.0005                                           # can toggle
@@ -83,9 +83,11 @@ def train(model, trainData, valData, config):
     for epoch in range(start_epoch+1, config['epochs']):
         start_time = time.time()
         model.train()
+
         pred_all = []
         label_all = []
         losses_total = []
+        loss = 0
         loss_total = 0
         losses_data = []
         loss_data = 0
@@ -107,12 +109,12 @@ def train(model, trainData, valData, config):
             dloss, rloss = compute_loss(model, loss_cls_fn, config, outputs, labels)
             loss_data += dloss.item()
             loss_reg += rloss.item()
+            loss = dloss + rloss
             loss_total += dloss.item() + rloss.item()
 
             losses_data.append(dloss)
             losses_reg.append(rloss)
             losses_total.append(dloss+rloss)
-
 
             # backward pass
             loss.backward()
@@ -125,25 +127,26 @@ def train(model, trainData, valData, config):
             pred_all.append(pred.detach().cpu().numpy())
             label_all.append(labels.cpu().numpy())
 
-        loss_cls_mean = loss_cls_all / iter_per_epoch
-        loss_mean = loss_all / iter_per_epoch
+        # mean of total loss, across iterations in this epoch
+        loss_mean = loss / iter_per_epoch
 
         info = 'epoch%03d_iter%06d' % (epoch, iter)
         print('Training time for epoch %3d: %3d' % (epoch, time.time() - start_time))
         print('Epoch: [%3d] Training Results' % (epoch))
         pred_all = np.concatenate(pred_all, axis=0)
         label_all = np.concatenate(label_all, axis=0)
-        stat = compute_result_stat(pred_all, label_all, config['num_cls'])
-        stat['loss_cls'] = loss_cls_mean
-        stat['loss_all'] = loss_mean
+        stat = compute_result_stat(pred_all, label_all)
+        stat['loss_mean'] = loss_mean
         print_result_stat(stat)
         save_result_stat(stat, config, info=info)
 
+        # perform validation for this epoch. Note that the scheduler depends on validation results.
         print('Epoch: [%3d] Validation Results' % (epoch))
         monitor_metric = evaluate(model, valData, loss_cls_fn, pred_fn, config, info='val')
         scheduler.step(monitor_metric)
-
         print('lr: ', optimizer.param_groups[0]['lr'])
+
+        # TODO: return and save validation loss
 
         # save ckp of either 1) best epoch 2) every 10th epoch 3) last epoch
         if monitor_metric_best < monitor_metric or epoch % 10 == 1 or epoch == config['epochs']-1:

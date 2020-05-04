@@ -107,7 +107,7 @@ def load_pretrained_model(model, device, ckpt_path):
 
     return model
 
-def compute_result_stat(pred, label, num_cls, mask):
+def compute_result_stat(pred, label, num_cls=2, mask):
     if pred.shape[0] == mask.shape[0]:
         idx = (mask != 0)
         pred = pred[idx]
