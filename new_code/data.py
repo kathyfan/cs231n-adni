@@ -30,9 +30,9 @@ def get_data(filename):
     min_y = 0
     min_z = 0
     i = 0
-    for subject_idx in file_idx:
-        # TODO: figure out proper filename for our repo
-        filename_full = '/fs/neurosci01/qingyuz/3dcnn/ADNI/img_64_longitudinal/' + subject_idx
+    for img_idx in file_idx:
+        filename_full = '/Users/elissali/Documents/GitHub/cs231n-adni/data/' + img_idx
+        # '/fs/neurosci01/qingyuz/3dcnn/ADNI/img_64_longitudinal/'
 
         img = nib.load(filename_full)
         img_data = img.get_fdata()
