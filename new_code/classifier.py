@@ -83,6 +83,12 @@ def train(model, trainData, valData, config):
     iter = 0 # iteration number; cumulative across epochs
     monitor_metric_best = 0
     iter_per_epoch = len(trainData.loader)
+
+    # store final loss from end of each epoch
+    losses_total_epochs = []
+    losses_data_epochs = []
+    losses_reg_epochs = []
+
     for epoch in range(start_epoch+1, config['epochs']):
         start_time = time.time()
         model.train()
@@ -133,6 +139,11 @@ def train(model, trainData, valData, config):
         # mean of total loss, across iterations in this epoch
         loss_mean = loss / iter_per_epoch
 
+        # store final losses from this epoch
+        losses_data_epochs = losses_data[-1]
+        losses_reg_epochs = losses_reg[-1]
+        losses_total_epochs = losses_total[-1]
+
         info = 'epoch%03d_iter%06d' % (epoch, iter)
         print('Training time for epoch %3d: %3d' % (epoch, time.time() - start_time))
         print('Epoch: [%3d] Training Results' % (epoch))
@@ -143,6 +154,9 @@ def train(model, trainData, valData, config):
         stat['losses_data_hist'] = losses_data
         stat['losses_reg_hist'] = losses_reg
         stat['losses_total_hist'] = losses_total
+        stat['losses_data_epochs'] = losses_data_epochs
+        stat['losses_reg_epochs'] = losses_reg_epochs
+        stat['losses_total_epochs'] = losses_total_epochs
         print_result_stat(stat)
         save_result_stat(stat, config, info=info)
 
