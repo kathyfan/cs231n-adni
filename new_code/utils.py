@@ -5,8 +5,6 @@ import torch
 import pandas as pd
 import sklearn.metrics
 from sklearn.metrics import confusion_matrix, balanced_accuracy_score
-import scipy.ndimage
-import scipy.stats
 import matplotlib.pyplot as plt
 
 
@@ -16,7 +14,6 @@ def save_config_file(config):
     for key, value in config.items():
         f.write(key + ': ' + str(value) + '\n')
     f.close()
-
 
 def loss_regularization_fn(layer_list, regularizer):
     rloss = 0
@@ -30,14 +27,6 @@ def loss_regularization_fn(layer_list, regularizer):
                 raise ValueError('Regularizer not implemented')
     return rloss
 
-def reshape_output_and_label(output, label):
-    #if output.shape != label.shape:
-        # output: (bs, ts, cls), lstm
-    while(len(label.shape) != len(output.shape)):
-        label = label.unsqueeze(-1)
-    label = label.repeat(1, output.shape[1], 1)  # (bs, ts, cls)
-    return label
-
 # return data loss, regularization loss
 def compute_loss(model, loss_cls_fn, config, output, labels):
     dloss = loss_cls_fn(outputs, labels)
@@ -48,12 +37,6 @@ def compute_loss(model, loss_cls_fn, config, output, labels):
         rloss = loss_regularization_fn([model.fc1, model.fc2, model.fc3], config['regularizer'])
         rloss *= config['lambda_reg']
     return dloss, rloss
-
-def vote_prediction(pred, mask):
-    # pred_bi = np.where(pred>=0.5, 1, 0).squeeze(-1) * mask
-    # pred_new = [1 if pred_bi[i,:].sum()>=0.5*mask[i,:].sum() else 0 for i in range(pred_bi.shape[0])]
-    pred_new = (pred.squeeze(-1) * mask).sum(1) / mask.sum(1)
-    return pred_new
 
 def save_checkpoint(state, is_best, checkpoint_dir):
     print("saving checkpoint")
@@ -162,10 +145,8 @@ def save_prediction(pred, label, label_raw, config):
 def save_result_figure(config):
     stat_path = os.path.join(config['ckpt_path'], 'stat.csv')
     stat = pd.read_csv(stat_path)
-    data_train, data_test = [], []
     columns = [col for col in stat.columns][2:]
     columns = sorted(columns)
-    # pdb.set_trace()
     df_train = stat.loc[(stat['info'] != 'test') & (stat['info'] != 'val')]
     df_test = stat.loc[stat['info'] == 'test']
     df_val = stat.loc[stat['info'] == 'val']
