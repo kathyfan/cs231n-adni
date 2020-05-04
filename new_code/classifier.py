@@ -90,13 +90,13 @@ def train(model, trainData, valData, config):
 
         pred_all = []
         label_all = []
-        losses_total = []
-        loss = 0
-        loss_total = 0
-        losses_data = []
-        loss_data = 0
-        losses_reg = []
-        loss_reg = 0
+        loss = 0 # used for backward pass and average calculation
+        losses_total = [] # total loss history
+        loss_total = 0 # running total loss
+        losses_data = [] # data loss history
+        loss_data = 0 # running data loss
+        losses_reg = [] # regularization loss history
+        loss_reg = 0 # running regularization loss
         for i, sample in enumerate(trainData.loader, 0):
             iter += 1
 
@@ -171,45 +171,52 @@ def test(model, testData, loss_cls_fn, pred_fn, config):
 
 def evaluate(model, testData, loss_cls_fn, pred_fn, config, info='Default'):
     model.eval()
-    loss_cls_all = 0
-    loss_all = 0
     pred_all = []
     label_all = []
+
+    loss = 0  # used for backward pass and average calculation
+    losses_total = []  # total loss history
+    loss_total = 0  # running total loss
+    losses_data = []  # data loss history
+    loss_data = 0  # running data loss
+    losses_reg = []  # regularization loss history
+    loss_reg = 0  # running regularization loss
     with torch.no_grad():   # else, the memory explode during model(img)
-        for half in ['left', 'right']:
-            testData.dataset.set_half(half)
-            for iter, sample in enumerate(testData.loader):
-                img = sample['image'].to(config['device'], dtype=torch.float)
-                label = sample['label'].to(config['device'], dtype=torch.long)
-                mask = sample['mask'].to(config['device'], dtype=torch.float)
-                if config['num_cls'] == 2:
-                    label = label.unsqueeze(1).type(torch.float)
-                else:
-                    output = model(img, mask)
-                pred = pred_fn(output[0])
-                loss, losses = compute_loss(model, loss_cls_fn, config, output, pred, label, mask)
-                loss_cls_all += losses[0].item()
-                loss_all += loss.item()
 
-                pred_all.append(pred.detach().cpu().numpy())
-                label_all.append(label.cpu().numpy())
+        for iter, sample in enumerate(testData.loader):
+            imgs = sample['image'].to(config['device'], dtype=torch.float)
+            labels = sample['label'].to(config['device'], dtype=torch.long)
+            output = model(imgs)
+            pred = pred_fn(output[0])
 
-    loss_cls_mean = loss_cls_all / (2*(iter + 1))
-    loss_mean = loss_all / (2*(iter + 1))
-    print(info, loss_cls_mean, loss_mean)
+            # compute losses
+            dloss, rloss = compute_loss(model, loss_cls_fn, config, output, labels)
+            loss_data += dloss.item()
+            loss_reg += rloss.item()
+            loss = dloss + rloss
+            loss_total += dloss.item() + rloss.item()
+
+            losses_data.append(dloss)
+            losses_reg.append(rloss)
+            losses_total.append(dloss + rloss)
+
+            pred_all.append(pred.detach().cpu().numpy())
+            label_all.append(labels.cpu().numpy())
+
+    loss_mean = loss / (2*(iter + 1))
+    print(info, loss_mean)
     pred_all = np.concatenate(pred_all, axis=0)
     label_all = np.concatenate(label_all, axis=0)
     stat = compute_result_stat(pred_all, label_all, config['num_cls'])
-    stat['loss_cls'] = loss_cls_mean
-    stat['loss_all'] = loss_mean
+    stat['loss_mean'] = loss_mean
     print_result_stat(stat)
-    if info != 'Test':
+    if info != 'Test': # validation phase
         save_result_stat(stat, config, info=info)
     else:
         save_prediction(pred_all, label_all, testData.dataset.label_raw, config)
 
-    metric = stat['accuracy'][0]
-    return metric
+    acc = stat['accuracy'][0]
+    return acc
 
 if config['phase'] == 'train':
     train(model, trainData, valData, loss_cls_fn, pred_fn, config)
