@@ -19,16 +19,16 @@ def save_config_file(config):
 
 
 def loss_regularization_fn(layer_list, regularizer):
-    los_reg = 0
+    rloss = 0
     for layer in layer_list:
         for weight in layer.parameters():
             if regularizer == 'l2':
-                los_reg += weight.norm()
+                rloss += weight.norm()
             elif regularizer == 'l1':
-                los_reg += torch.mean(torch.abs(weight))
+                rloss += torch.mean(torch.abs(weight))
             else:
-                raise ValueError('No regularizer')
-    return los_reg
+                raise ValueError('Regularizer not implemented')
+    return rloss
 
 def reshape_output_and_label(output, label):
     #if output.shape != label.shape:
@@ -38,46 +38,16 @@ def reshape_output_and_label(output, label):
     label = label.repeat(1, output.shape[1], 1)  # (bs, ts, cls)
     return label
 
-def compute_loss(model, loss_cls_fn, pred_fn, config, output, pred, labels, mask, interval):
-    loss = 0
-    losses = []
-    label = labels[0]
-    label_ts = labels[1]
+# return data loss, regularization loss
+def compute_loss(model, loss_cls_fn, config, output, labels):
+    dloss = loss_cls_fn(outputs, labels)
 
-    if len(output) > 1:
-        pred_all = pred_fn(output[1])
-
-    if not config['classify_by_label_all']:    #old mode
-        loss_cls_final = loss_cls_fn(output[0], label).mean()
-    else:    # new mode
-        if len(output) > 1:
-            if config['num_cls'] == 2:
-                output1_re = output[1]
-                label_ts_re = label_ts
-                mask_re = mask
-            else:
-                output1_re = output[1].view(-1, output[0].shape[-1])    # (bs, ts, num_cls) -> (bs*ts, num_cls)
-                label_ts_re = label_ts.view(-1)
-                mask_re = mask.view(-1)
-            loss_cls_final = loss_cls_fn(output1_re[mask_re==1], label_ts_re[mask_re==1]).mean()
-        else:
-            loss_cls_final = loss_cls_fn(output[0], label_ts).mean()
-    loss += loss_cls_final
-    losses.append(loss_cls_final)
-    # adding loss given by intermediate timestep output, in mode: all ts predict final/future label
-    if not config['classify_by_label_all'] and len(output) > 1 and config['cls_intermediate']:
-        label_reshape = reshape_output_and_label(output[1], label)
-        loss_cls_mid = loss_cls_fn(output[1], label_reshape).squeeze(-1)
-        ts_weight = (torch.Tensor(config['cls_intermediate']) / config['cls_intermediate'][-1]).repeat(mask.shape[0],1).to(config['device'])
-        loss_cls_mid = (loss_cls_mid * mask * ts_weight).mean()
-        loss += config['lambda_mid'] * loss_cls_mid
-        losses.append(loss_cls_mid)
-    # adding l2-loss_regularization
+    rloss = 0
+    # add regularization loss, if specified by config
     if config['regularizer']:
-        loss_reg = loss_regularization_fn([model.fc1, model.fc2, model.fc3], config['regularizer'])
-        loss += config['lambda_reg'] * loss_reg
-        losses.append(loss_reg)
-    return loss, losses
+        rloss = loss_regularization_fn([model.fc1, model.fc2, model.fc3], config['regularizer'])
+        rloss *= config['lambda_reg']
+    return dloss, rloss
 
 def vote_prediction(pred, mask):
     # pred_bi = np.where(pred>=0.5, 1, 0).squeeze(-1) * mask

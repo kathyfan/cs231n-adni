@@ -44,8 +44,6 @@ config['lambda_reg'] = 0.01
 config['clip_grad'] = True
 config['clip_grad_value'] = 1.
 config['lr'] = 0.0005                                           # can toggle
-config['loss_weighted'] = False
-config['loss_ratios'] = None
 
 ### NOT ACTIVELY USED / TURNED OFF ###
 config['static_fe'] = False
@@ -87,32 +85,45 @@ def train(model, trainData, valData, config):
         model.train()
         pred_all = []
         label_all = []
-        loss_cls_all = 0
-        loss_all = 0
+        losses_total = []
+        loss_total = 0
+        losses_data = []
+        loss_data = 0
+        losses_reg = []
+        loss_reg = 0
         for i, sample in enumerate(trainData.loader, 0):
             iter += 1
 
-            img = sample['image'].to(config['device'], dtype=torch.float)
-            label = sample['label'].to(config['device'], dtype=torch.long)
+            imgs, labels = sample
 
-            if config['num_cls'] == 2:
-                label = label.unsqueeze(1).type(torch.float)
-            else:
-                output = model(img, mask)   # output is a list, [final_output, intermediate_output]
-            pred = pred_fn(output[0])
-
-            loss, losses = compute_loss(model, loss_cls_fn, config, output, pred, label, mask)
-            loss_cls_all += losses[0].item()
-            loss_all += loss.item()
-
+            # zero the parameter gradients
             optimizer.zero_grad()
+
+            # forward pass
+            outputs = model(imgs)
+            pred = pred_fn(outputs[0])
+
+            # compute loss from data and regularization, and record
+            dloss, rloss = compute_loss(model, loss_cls_fn, config, outputs, labels)
+            loss_data += dloss.item()
+            loss_reg += rloss.item()
+            loss_total += dloss.item() + rloss.item()
+
+            losses_data.append(dloss)
+            losses_reg.append(rloss)
+            losses_total.append(dloss+rloss)
+
+
+            # backward pass
             loss.backward()
             if config['clip_grad']:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config['clip_grad_value'])
+
+            # optimize
             optimizer.step()
 
             pred_all.append(pred.detach().cpu().numpy())
-            label_all.append(label.cpu().numpy())
+            label_all.append(labels.cpu().numpy())
 
         loss_cls_mean = loss_cls_all / iter_per_epoch
         loss_mean = loss_all / iter_per_epoch
