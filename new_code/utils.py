@@ -107,37 +107,24 @@ def load_pretrained_model(model, device, ckpt_path):
 
     return model
 
-def compute_result_stat(pred, label, num_cls=2, mask):
-    if pred.shape[0] == mask.shape[0]:
-        idx = (mask != 0)
-        pred = pred[idx]
-        label = label[idx]
+# calculate statistics of prediction result
+# note that downstream, we are currently only using accuracy
+def compute_result_stat(pred, label):
     num_case = len(pred)
     stat = {}
-    if num_cls == 2:
-        pred_bi = np.where(pred>=0.5, 1, 0)
-        tp = ((pred_bi == label) & (label == 1)).sum()
-        tn = ((pred_bi == label) & (label == 0)).sum()
-        fn = ((pred_bi != label) & (label == 1)).sum()
-        fp = ((pred_bi != label) & (label == 0)).sum()
-        stat['accuracy'] = 1.* (tp + tn) / num_case
-        stat['sensitivity'] = 1.* tp / (tp + fn)
-        stat['specificity'] = 1.* tn / (tn + fp)
-        stat['balanced_accuracy'] = balanced_accuracy_score(label, pred_bi)
-        stat['precision'] = 1.* tp / (tp + fp)
-        stat['f1'] = 2.* tp / (2.*tp + fp + fn)
-        #pdb.set_trace()
-        fpr, tpr, _ = sklearn.metrics.roc_curve(label, pred)
-        stat['auc'] = sklearn.metrics.auc(fpr, tpr)
-    elif num_cls == 0:
-        stat['mse'] = ((pred - label)**2).mean()
-        _, _, stat['correlation_coefficient'], _, _ = scipy.stats.linregress(pred.reshape(num_case,), label.reshape(num_case,))
-    else:
-        #pdb.set_trace()
-        pred_bi = pred.argmax(-1)
-        stat['accuracy'] = 1.* (pred_bi == label).sum() / num_case
-        stat['balanced_accuracy'] = balanced_accuracy_score(label, pred_bi)
-        stat['confusion_matrix'] = confusion_matrix(label, pred_bi).reshape(num_cls**2)
+    pred_bi = np.where(pred>=0.5, 1, 0)
+    tp = ((pred_bi == label) & (label == 1)).sum()
+    tn = ((pred_bi == label) & (label == 0)).sum()
+    fn = ((pred_bi != label) & (label == 1)).sum()
+    fp = ((pred_bi != label) & (label == 0)).sum()
+    stat['accuracy'] = 1.* (tp + tn) / num_case
+    stat['sensitivity'] = 1.* tp / (tp + fn)
+    stat['specificity'] = 1.* tn / (tn + fp)
+    stat['balanced_accuracy'] = balanced_accuracy_score(label, pred_bi)
+    stat['precision'] = 1.* tp / (tp + fp)
+    stat['f1'] = 2.* tp / (2.*tp + fp + fn)
+    fpr, tpr, _ = sklearn.metrics.roc_curve(label, pred)
+    stat['auc'] = sklearn.metrics.auc(fpr, tpr)
 
     return stat
 

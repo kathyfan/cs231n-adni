@@ -141,6 +141,9 @@ def train(model, trainData, valData, config):
         label_all = np.concatenate(label_all, axis=0)
         stat = compute_result_stat(pred_all, label_all)
         stat['loss_mean'] = loss_mean
+        stat['losses_data_hist'] = losses_data
+        stat['losses_reg_hist'] = losses_reg
+        stat['losses_total_hist'] = losses_total
         print_result_stat(stat)
         save_result_stat(stat, config, info=info)
 
@@ -150,15 +153,13 @@ def train(model, trainData, valData, config):
         scheduler.step(monitor_metric)
         print('lr: ', optimizer.param_groups[0]['lr'])
 
-        # TODO: return and save validation loss
-
         # save ckp of either 1) best epoch 2) every 10th epoch 3) last epoch
         if monitor_metric_best < monitor_metric or epoch % 10 == 1 or epoch == config['epochs']-1:
             is_best = (monitor_metric_best < monitor_metric) # want: high monitor_metric
             if is_best:
                 monitor_metric_best = monitor_metric
-            state = {'epoch': epoch, 'monitor_metric': monitor_metric, \
-                    'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict(), \
+            state = {'epoch': epoch, 'monitor_metric': monitor_metric,
+                    'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict(),
                     'model': model.state_dict()}
             save_checkpoint(state, is_best, config['ckpt_path'])
 
@@ -207,8 +208,11 @@ def evaluate(model, testData, loss_cls_fn, pred_fn, config, info='Default'):
     print(info, loss_mean)
     pred_all = np.concatenate(pred_all, axis=0)
     label_all = np.concatenate(label_all, axis=0)
-    stat = compute_result_stat(pred_all, label_all, config['num_cls'])
+    stat = compute_result_stat(pred_all, label_all)
     stat['loss_mean'] = loss_mean
+    stat['losses_data_hist'] = losses_data
+    stat['losses_reg_hist'] = losses_reg
+    stat['losses_total_hist'] = losses_total
     print_result_stat(stat)
     if info != 'Test': # validation phase
         save_result_stat(stat, config, info=info)
@@ -219,7 +223,7 @@ def evaluate(model, testData, loss_cls_fn, pred_fn, config, info='Default'):
     return acc
 
 if config['phase'] == 'train':
-    train(model, trainData, valData, loss_cls_fn, pred_fn, config)
+    train(model, trainData, valData, config)
     save_result_figure(config)
 else:
     test(model, testData, loss_cls_fn, pred_fn, config)
