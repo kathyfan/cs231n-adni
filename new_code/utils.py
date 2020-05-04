@@ -7,10 +7,7 @@ import sklearn.metrics
 from sklearn.metrics import confusion_matrix, balanced_accuracy_score
 import scipy.ndimage
 import scipy.stats
-import scipy.misc as sci
 import matplotlib.pyplot as plt
-import matplotlib as mpl
-import skimage.color
 
 
 def save_config_file(config):
@@ -24,24 +21,6 @@ def save_config_file(config):
 Define classification loss function
 '''
 def define_loss_fn(data, num_cls=2, loss_weighted=False, loss_ratios=None):
-    # set weight
-    if loss_weighted and num_cls == 0:
-        raise ValueError('Not support weighted loss for regression')
-    if loss_weighted == False:
-        weight = 0.5 * np.ones((num_cls,))
-    elif loss_ratios == None:
-        weight = 1.0/np.array(data.dataset.cls_ratio)
-        weight[np.isfinite(weight)==False] = 0
-        weight = weight / weight.sum()
-    else:
-        if len(loss_ratios) != num_cls:
-            raise ValueError('Wrong loss weight ratio')
-        else:
-            loss_ratios = np.array(loss_ratios)
-            weight = loss_ratios / loss_ratios.sum()
-    weight = torch.tensor(weight, dtype=torch.float).cuda()
-    print('Weighted loss ratio', weight)
-
     # diff num_cls
     if num_cls == 0:
         loss_cls_fn = torch.nn.MSELoss()
@@ -52,10 +31,10 @@ def define_loss_fn(data, num_cls=2, loss_weighted=False, loss_ratios=None):
         pred_fn = lambda x: x
     elif num_cls == 2:
         weight = 1.* weight[1] / weight[0]
-        loss_cls_fn = torch.nn.BCEWithLogitsLoss(pos_weight=weight, reduction='none')
+        loss_cls_fn = torch.nn.BCEWithLogitsLoss(reduction='none')
         pred_fn = torch.nn.Sigmoid()
     else:
-        loss_cls_fn = torch.nn.CrossEntropyLoss(weight=weight, reduction='none')
+        loss_cls_fn = torch.nn.CrossEntropyLoss(reduction='none')
         # pred_fn = torch.nn.LogSoftmax(1)
         pred_fn = torch.nn.Softmax(-1)
     return loss_cls_fn, pred_fn
@@ -72,31 +51,6 @@ def loss_regularization_fn(layer_list, regularizer):
                 raise ValueError('No regularizer')
     return los_reg
 
-def loss_consistency_fn(pred, mask, label, config):
-    #pdb.set_trace()
-    if config['num_cls'] <= 2:    # binary/regression
-        pred = pred.squeeze(-1)
-    else:    # multiclass, AD
-        pred = pred[:,:,-1]
-    bs, ts = mask.shape[0], mask.shape[1]
-    loss_cons = 0
-    if config['dataset_name'] == 'adni':
-        if config['num_cls'] == 2:   # AD / pMCI
-            overlook_mask = (label==1)
-        else:    # AD and pMCI
-            overlook_mask = (label==2) | (label==4)
-        overlook_mask = overlook_mask[:,0,0].float()
-    else:
-        # print('define overlook mask')
-        overlook_mask = torch.ones_like(label[:,0,0])
-    # only consider AD/MCI with label=1
-    for i in range(ts):
-        for j in range(i+1, ts):
-            loss_tpm = overlook_mask * torch.clamp((pred[:, j] - pred[:, i]) * torch.min(mask[:, j], mask[:, i]), max=0.)
-            loss_cons += loss_tpm.sum()
-    loss_cons /= ts
-    return -loss_cons
-
 def reshape_output_and_label(output, label):
     #if output.shape != label.shape:
         # output: (bs, ts, cls), lstm
@@ -104,59 +58,6 @@ def reshape_output_and_label(output, label):
         label = label.unsqueeze(-1)
     label = label.repeat(1, output.shape[1], 1)  # (bs, ts, cls)
     return label
-
-def compute_loss_ordinary(model, output, pred, labels, mask, config):
-    loss = 0
-    losses = []
-    label = labels[0]
-    label_ts = labels[1]
-
-    if config['num_cls'] <= 2:
-        raise ValueError('Only support multi-class classification')
-
-    loss_ratios = np.array(config['loss_ratios'])
-    weight = torch.tensor(loss_ratios, dtype=torch.float).cuda()
-    loss_cls_nc_fn = torch.nn.BCEWithLogitsLoss(pos_weight=weight[0], reduction='none')
-    loss_cls_ad_fn = torch.nn.BCEWithLogitsLoss(pos_weight=weight[1], reduction='none')
-
-    label_ts_nc = (label_ts==0).type(torch.float)
-    label_ts_ad = (label_ts==2).type(torch.float)
-    if len(output) > 1:
-        loss_cls_nc = loss_cls_nc_fn(output[1][:,:,0][mask==1], label_ts_nc[mask==1]).mean()
-        loss_cls_ad = loss_cls_ad_fn(output[1][:,:,1][mask==1], label_ts_ad[mask==1]).mean()
-    else:
-        loss_cls_nc = loss_cls_nc_fn(output[0][:,0], label_ts_nc).mean()
-        loss_cls_ad = loss_cls_ad_fn(output[0][:,1], label_ts_ad).mean()
-
-    loss_cls_final = 0.5 * (loss_cls_nc + loss_cls_ad)
-    loss += loss_cls_final
-    losses.append(loss_cls_final)
-
-    # consistency
-    if len(output) > 1 and config['lambda_consistent']:
-        label_reshape = reshape_output_and_label(output[1], label)
-        pred_ts_ad = torch.nn.functional.sigmoid(output[1][:,:,1:]).squeeze(-1)
-
-        bs, ts = mask.shape[0], mask.shape[1]
-        loss_cons = 0
-        overlook_mask = (label_reshape==2) | (label_reshape==4)
-        overlook_mask = overlook_mask[:,0,0].float()
-
-        # only consider AD/MCI with label=1
-        for i in range(ts):
-            for j in range(i+1, ts):
-                loss_tpm = overlook_mask * torch.clamp((pred_ts_ad[:, j] - pred_ts_ad[:, i]) * torch.min(mask[:, j], mask[:, i]), max=0.)
-                loss_cons += loss_tpm.sum()
-        loss_cons /= ts
-        loss += config['lambda_consistent'] * loss_cons
-        losses.append(loss_cons)
-
-    if config['regularizer']:
-        loss_reg = loss_regularization_fn([model.lstm, model.fc1, model.fc2, model.fc2_pool, model.fc3_1, model.fc3_2], config['regularizer'])
-        loss += config['lambda_reg'] * loss_reg
-        losses.append(loss_reg)
-    return loss, losses
-
 
 def compute_loss(model, loss_cls_fn, pred_fn, config, output, pred, labels, mask, interval):
     loss = 0

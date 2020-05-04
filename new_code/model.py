@@ -59,7 +59,7 @@ class SingleTimestep3DCNN(nn.Module):
             raise ValueError('No implementation of ', fc_act)
 
         num_output = 1
-        self.num_cls = num_cls
+        self.num_cls = 2
 
         self.fc1 = nn.Sequential(
                         nn.Linear(num_feat, 4*fc_num_ch),
@@ -83,12 +83,10 @@ class SingleTimestep3DCNN(nn.Module):
                 if 'bias' in name:
                     nn.init.constant_(weight, 0.0)
 
-    def forward(self, x, mask):
+    def forward(self, x):
         conv4 = self.feature_extractor(x)
         conv4_flatten = conv4.view(x.shape[0], -1)
         fc1 = self.fc1(conv4_flatten)
         fc2 = self.fc2(fc1)
         output = self.fc3(fc2)
-        if self.num_cls == 0:
-            output = F.relu(output)
-        return [output]
+        return output
