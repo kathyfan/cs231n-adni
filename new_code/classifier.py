@@ -3,9 +3,11 @@ import time
 import torch
 import torch.optim as optim
 import numpy as np
+from torch.utils.data import DataLoader
 
 from model import *
 from utils import *
+from data import *
 
 config = {}
 
@@ -54,9 +56,11 @@ config['continue_train'] = False
 save_config_file(config)
 
 # TODO: get data from data.py
-trainData = None
-valData = None
-testData = None
+
+train, val, test = get_data(file_path)
+trainData = DataLoader(train, batch_size = config['batch_size'], shuffle=True)
+valData = DataLoader(val, batch_size = config['batch_size'], shuffle=True)
+testData = DataLoader(test, batch_size = config['batch_size'])
 
 # model
 input_img_size = (config['img_size'][0], config['img_size'][1], config['img_size'][2])
