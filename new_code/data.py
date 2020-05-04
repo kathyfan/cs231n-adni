@@ -43,14 +43,19 @@ def get_data():
         i += 1
 
     # partition entire dataset into train, val, test
-    train_data = data[:900]
-    train_label = label[:900]
+    # fold_idx goes from (0,4); separating these arbitrarily based on fold_idx
+    train_idx = (fold_idx <= 2) 
+    val_idx = (fold_idx == 3)
+    test_idx = (fold_idx == 4)
 
-    val_data = data[900:1100]
-    val_label = label[900:1100]
+    train_data = data[train_idx]
+    train_label = label[train_idx]
 
-    test_data = data[1100:]
-    test_label = label[1100:]
+    val_data = data[val_idx]
+    val_label = label[val_idx]
+
+    test_data = data[test_idx]
+    test_label = label[test_idx]
 
     # Augment data
     augment_size = 1024
