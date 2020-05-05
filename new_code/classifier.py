@@ -27,7 +27,7 @@ else:
     time_label = str(localtime.tm_year) + '_' + str(localtime.tm_mon) + '_' + str(localtime.tm_mday) + \
                 '_' + str(localtime.tm_hour) + '_' + str(localtime.tm_min)
 
-config['ckpt_path'] = os.path.join('../ckpt/', config['model_name'], time_label)
+config['ckpt_path'] = os.path.join('../ckpt/', time_label)
 if not os.path.exists(config['ckpt_path']):
     os.makedirs(config['ckpt_path'])
 
