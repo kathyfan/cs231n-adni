@@ -170,7 +170,7 @@ def train(model, trainData, valData, config):
         stat['learning_rates'] = learning_rates
 
         print_result_stat(stat)
-        save_result_stat(stat, config, info=info)
+        save_result_stat(stat, epoch, config, info=info)
 
         # save ckp of either 1) best epoch 2) every 10th epoch 3) last epoch
         if monitor_metric_best < monitor_metric or epoch % 10 == 1 or epoch == config['epochs']-1:
@@ -234,7 +234,7 @@ def evaluate(model, testData, loss_cls_fn, pred_fn, config, info='Default'):
     stat['losses_total_hist'] = losses_total
     print_result_stat(stat)
     if info != 'Test': # validation phase
-        save_result_stat(stat, config, info=info)
+        save_result_stat(stat, 'val', config, info=info)
     else:
         save_prediction(pred_all, label_all, testData.dataset.label_raw, config)
 
