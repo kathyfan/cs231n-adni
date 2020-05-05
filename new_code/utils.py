@@ -115,8 +115,8 @@ def print_result_stat(stat):
     for key, value in stat.items():
         print(key, value)
 
-def save_result_stat(stat, config, info='Default'):
-    stat_path = os.path.join(config['ckpt_path'], 'stat.csv')
+def save_result_stat(idx, stat, config, info='Default'):
+    stat_path = os.path.join(config['ckpt_path'], idx, 'stat.csv')
     columns=['info',] + sorted(stat.keys())
     if not os.path.exists(stat_path):
         df = pd.DataFrame(columns=columns)
