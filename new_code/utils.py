@@ -52,7 +52,7 @@ def load_checkpoint_by_key(values, checkpoint_dir, keys, device, ckpt_name='mode
     value is the optimizer or model that define outside
     '''
     filename = os.path.join(checkpoint_dir, ckpt_name)
-    print(filename)
+    print("filename: ", filename)
     if os.path.isfile(filename):
         checkpoint = torch.load(filename, map_location=device)
         epoch = checkpoint['epoch']
@@ -113,7 +113,7 @@ def compute_result_stat(pred, label):
 
 def print_result_stat(stat):
     for key, value in stat.items():
-        print(key, value)
+        print("utils.py line 116: ", key, value)
 
 def save_result_stat(idx, stat, config, info='Default'):
     stat_path = os.path.join(config['ckpt_path'], idx, 'stat.csv')

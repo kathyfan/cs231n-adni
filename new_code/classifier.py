@@ -61,6 +61,8 @@ trainData = DataLoader(train, batch_size = config['batch_size'], shuffle=True)
 valData = DataLoader(val, batch_size = config['batch_size'], shuffle=True)
 testData = DataLoader(test, batch_size = config['batch_size'])
 
+print("classifier.py: line 64: done loading data")
+
 # model
 input_img_size = (config['img_size'][0], config['img_size'][1], config['img_size'][2])
 model = SingleTimestep3DCNN(in_num_ch=1, img_size=input_img_size, inter_num_ch=16, fc_num_ch=16,
@@ -91,7 +93,12 @@ def train(model, trainData, valData, config):
 
     learning_rates = []
 
-    for epoch in range(start_epoch+1, config['epochs']):
+    print("classifier.py: line 95")
+    
+    for epoch in range(0, config['epochs']):
+
+        print("classifier.py: line 100, epoch #", epoch)
+
         start_time = time.time()
         model.train()
 
@@ -128,6 +135,7 @@ def train(model, trainData, valData, config):
             losses_total.append(dloss+rloss)
 
             # backward pass
+            print("classifier.py: line 138")
             loss.backward()
             if config['clip_grad']:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config['clip_grad_value'])
