@@ -1,15 +1,6 @@
-from sklearn.model_selection import StratifiedKFold
 import numpy as np
 import nibabel as nib
 import scipy as sp
-import scipy.ndimage
-from sklearn.metrics import mean_squared_error, r2_score
-
-import sys
-import argparse
-import os
-import glob 
-import dcor
 
 def get_data():
     # Load the data
