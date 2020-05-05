@@ -187,9 +187,15 @@ def train(model, train_data, train_label, val_data, val_label, config):
         label_all = np.concatenate(label_all, axis=0)
         stat = compute_result_stat(pred_all, label_all)
         stat['loss_mean'] = loss_mean
+
+        # these hold the losses of each iteration within this epoch
+        # i.e. data here only includes data from the current epoch
         stat['losses_data_hist'] = losses_data
         stat['losses_reg_hist'] = losses_reg
         stat['losses_total_hist'] = losses_total
+
+        # these hold the losses of the only last iteration of each epoch, up to the current epoch
+        # i.e. data here contains data from all prior epochs as well
         stat['losses_data_epochs'] = losses_data_epochs
         stat['losses_reg_epochs'] = losses_reg_epochs
         stat['losses_total_epochs'] = losses_total_epochs
