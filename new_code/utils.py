@@ -29,7 +29,7 @@ def loss_regularization_fn(layer_list, regularizer):
 
 # return data loss, regularization loss
 def compute_loss(model, loss_cls_fn, config, output, labels):
-    dloss = loss_cls_fn(outputs, labels)
+    dloss = loss_cls_fn(output, labels)
 
     rloss = 0
     # add regularization loss, if specified by config
