@@ -126,7 +126,7 @@ def train(model, train_data, train_label, val_data, val_label, config):
         loss_reg = 0 # running regularization loss
         
         for i in range(10):
-            print("classifier.py line 128: ", i)
+            print("classifier.py line 129: ", i)
             idx_perm = np.random.permutation(int(train_data.shape[0]/2))
             idx = idx_perm[:int(config['batch_size']/2)]
             idx = np.concatenate((idx,idx+int(train_data.shape[0]/2)))
@@ -134,20 +134,23 @@ def train(model, train_data, train_label, val_data, val_label, config):
             train_imgs = train_data[idx]
             train_labels = train_label[idx]
             imgs = torch.from_numpy(train_imgs).to(config['device'], dtype=torch.float)
-            labels = torch.from_numpy(train_labels).to(config['device'], dtype=torch.long)
-
-
+            labels = torch.from_numpy(train_labels).to(config['device'], dtype=torch.float)
+            print("LABEL SHAPE: ", labels.shape)
+            print("IMG SHAPE: ", imgs.shape)
             iter += 1
 
             # zero the parameter gradients
             optimizer.zero_grad()
 
             # forward pass
-            outputs = model(imgs)
+            outputs = torch.squeeze(model(imgs))    # to make it be [32] instead of [32,1]
             pred = pred_fn(outputs[0])
+            print("OUTPUTS: ", outputs.shape)
 
             # compute loss from data and regularization, and record
             dloss, rloss = compute_loss(model, loss_cls_fn, config, outputs, labels)
+            print("dloss: ", dloss)
+            print("dloss.item(): ", dloss.item())
             loss_data += dloss.item()
             loss_reg += rloss.item()
             loss = dloss + rloss
@@ -158,7 +161,7 @@ def train(model, train_data, train_label, val_data, val_label, config):
             losses_total.append(dloss+rloss)
 
             # backward pass
-            print("classifier.py: line 157")
+            print("classifier.py: line 164")
             loss.backward()
             if config['clip_grad']:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config['clip_grad_value'])
