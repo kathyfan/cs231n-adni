@@ -11,7 +11,7 @@ def get_data():
     np.random.seed(seed=0)
 
     subject_num = file_idx.shape[0]
-    print("data.py: line 13: ", subject_num)
+    print("data.py line 13: ", subject_num)
 
     # Only use a patch from each input image
     patch_x = 64
