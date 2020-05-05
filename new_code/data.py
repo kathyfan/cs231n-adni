@@ -87,18 +87,23 @@ def get_data():
     test_label_aug = np.zeros((augment_size_test * 2,))
     test_label_aug[augment_size_test:] = 1
 
-    print("data.py: line 90: done augmenting")
-
-    return train_data_aug, val_data_aug, test_data_aug
+    print("data.py: line 90: done augmenting; saving np arrays")
+    np.save("train_aug", train_data_aug)
+    np.save("val_aug", val_data_aug)
+    np.save("test_aug", test_data_aug)
+    np.save("train_label_aug", train_label_aug)
+    np.save("val_label_aug", val_label_aug)
+    np.save("test_label_aug", test_label_aug)
+    return train_data_aug, val_data_aug, test_data_aug, train_label_aug, val_label_aug, test_label_aug
 
 ## Data Augmentation
 def augment_by_transformation(data,n):
-    print("data.py line 96: inside augment_by_transformation: ", data)
+    print("data.py line 98: inside augment_by_transformation: ", data)
     if n <= data.shape[0]:
         return data
     else:
-        raw_n = data.shape[0]
-        m = n - raw_n
+        raw_n = data.shape[0]           # number of examples we actually have
+        m = n - raw_n                   # m = number of examples to generate to get n total examples (n = augment_size)
         new_data = np.zeros((m,data.shape[1],data.shape[2],data.shape[3],1))
         for i in range(0,m):
             idx = np.random.randint(0,raw_n)
@@ -107,7 +112,7 @@ def augment_by_transformation(data,n):
             new_data[i,:,:,:,0] = sp.ndimage.interpolation.rotate(new_data[i,:,:,:,0],np.random.uniform(-0.5,0.5),axes=(0,2),reshape=False)
             new_data[i,:,:,:,0] = sp.ndimage.interpolation.rotate(new_data[i,:,:,:,0],np.random.uniform(-0.5,0.5),axes=(1,2),reshape=False)
             new_data[i,:,:,:,0] = sp.ndimage.shift(new_data[i,:,:,:,0],np.random.uniform(-0.5,0.5))
-            print("data.py line 110: inside augment_by_transformation: ", i)
+            print("data.py line 112: inside augment_by_transformation: ", i)
         data = np.concatenate((data, new_data), axis=0)
         return data
 
