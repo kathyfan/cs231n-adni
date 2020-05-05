@@ -149,12 +149,12 @@ def train(model, train_data, train_label, val_data, val_label, config):
 
             # compute loss from data and regularization, and record
             dloss, rloss = compute_loss(model, loss_cls_fn, config, outputs, labels)
-            print("dloss: ", dloss)
-            print("dloss.item(): ", dloss.item())
-            loss_data += dloss.item()
+            print("dloss: ", dloss.shape)
+            print("rloss: ", rloss.shape)
+            loss_data += torch.sum(dloss)
             loss_reg += rloss.item()
             loss = dloss + rloss
-            loss_total += dloss.item() + rloss.item()
+            loss_total += torch.sum(dloss) + rloss.item()
 
             losses_data.append(dloss)
             losses_reg.append(rloss)
