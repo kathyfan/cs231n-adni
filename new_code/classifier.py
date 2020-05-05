@@ -156,9 +156,9 @@ def train(model, train_data, train_label, val_data, val_label, config):
             loss = dloss + rloss
             loss_total += torch.sum(dloss) + rloss.item()
 
-            losses_data.append(dloss)
+            losses_data.append(dloss)           # TODO: should we be appending torch.sum(dloss) here (batch loss)?
             losses_reg.append(rloss)
-            losses_total.append(dloss+rloss)
+            losses_total.append(dloss+rloss)    # TODO: and here? do we want to append batch loss or per-item loss for the batch?
 
             # backward pass
             print("classifier.py: line 164")
