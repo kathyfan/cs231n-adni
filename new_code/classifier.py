@@ -58,7 +58,7 @@ config['continue_train'] = False
 save_config_file(config)
 
 # split data into train, val, test
-if path.exists("train_label_aug.npy"):
+if path.exists("test_label_aug.npy"):
     train_data = np.load("train_aug.npy")
     val_data = np.load("val_aug.npy")
     test_data = np.load("test_aug.npy")
