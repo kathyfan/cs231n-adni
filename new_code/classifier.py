@@ -13,7 +13,7 @@ from data import *
 config = {}
 
 ### STATE ### 
-config['phase'] = 'train'                                       # or: 'test'
+config['phase'] = 'test'                                       # or: 'test'
 
 ### DEVICE ###
 config['gpu'] = '0,1'
@@ -42,7 +42,7 @@ config['ckpt_name'] = 'model_best.pth.tar'                      # only for testi
 ### TRAIN PARAMETERS ###
 config['batch_size'] = 32
 config['num_fold'] = 5
-config['epochs'] = 2                                            ### TODO: change this back to 60
+config['epochs'] = 60                                            
 config['regularizer'] = 'l2'                                    # can toggle
 config['lambda_reg'] = 0.01                                     # controls how much to regularize
 config['clip_grad'] = True
@@ -98,7 +98,8 @@ def train(model, train_data, train_label, val_data, val_label, config):
 
     iter = 0 # iteration number; cumulative across epochs
     monitor_metric_best = 0
-    iter_per_epoch = len(train_data)
+    iter_per_epoch = len(train_data) // config['batch_size']
+    print("iter_per_epoch: ", iter_per_epoch)
 
     # store final loss from end of each epoch
     losses_total_epochs = []
@@ -126,7 +127,7 @@ def train(model, train_data, train_label, val_data, val_label, config):
         losses_reg = [] # regularization loss history
         loss_reg = 0 # running regularization loss
         
-        for i in range(2):                                              ### TODO: change this range
+        for i in range(iter_per_epoch):                                              
             print("classifier.py line 129: ", i)
             idx_perm = np.random.permutation(int(train_data.shape[0]/2))
             idx = idx_perm[:int(config['batch_size']/2)]
@@ -229,6 +230,8 @@ def test(model, test_data, test_label, loss_cls_fn, pred_fn, config):
     if not os.path.exists(config['ckpt_path']):
         raise ValueError('Testing phase, no checkpoint folder')
     [model], _ = load_checkpoint_by_key([model], config['ckpt_path'], ['model'], config['device'], config['ckpt_name'])
+    # [model], _ = load_checkpoint_by_key([model], '../ckpt/2020_5_5_22_23', ['model'], config['device'], config['ckpt_name'])
+
     evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='Test')
 
 def evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='Default'):
@@ -236,6 +239,9 @@ def evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='D
     model.eval()
     pred_all = []
     label_all = []
+
+    iters = len(test_data) // config['batch_size']
+    print("iters: ", iters)
 
     loss = 0  # used for backward pass and average calculation
     losses_total = []  # total loss history
@@ -246,7 +252,7 @@ def evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='D
     loss_reg = 0  # running regularization loss
     with torch.no_grad():   # else, the memory explode during model(img)
 
-        for i in range(2):                                                          ### TODO: change back to range(len(test_data))
+        for i in range(iters):                                                          
             print("i: ", i) 
 
             idx_perm = np.random.permutation(int(test_data.shape[0]/2))             # batching the test data
@@ -290,13 +296,14 @@ def evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='D
     if info != 'Test': # validation phase
         save_result_stat('val', stat, config, info=info)
     else:
-        save_prediction(pred_all, label_all, testData.dataset.label_raw, config)
+        # save_prediction(pred_all, label_all, testData.dataset.label_raw, config)
+        print("/shrug we dunno what's happening here this should be save_prediction")
 
-    acc = stat['accuracy'][0]
+    acc = stat['accuracy']
     return acc
 
 if config['phase'] == 'train':
     train(model, train_data, train_label, val_data, val_label, config)
-    save_result_figure(config, '1')                                           ### TODO: change 1 to last epoch
+    save_result_figure(config, str(config['epochs'] - 1))
 else:
     test(model, test_data, test_label, loss_cls_fn, pred_fn, config)
