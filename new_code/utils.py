@@ -144,49 +144,54 @@ def save_prediction(pred, label, label_raw, config):
     print(res)
 
 
-def save_result_figure(config):
-    stat_path = os.path.join(config['ckpt_path'], 'stat.csv')
+def save_result_figure(config, idx):
+    print("in save_result_figure")
+    stat_path = os.path.join(config['ckpt_path'], idx, 'stat.csv')
     stat = pd.read_csv(stat_path)
     columns = [col for col in stat.columns][2:]
     columns = sorted(columns)
     df_train = stat.loc[(stat['info'] != 'test') & (stat['info'] != 'val')]
     df_test = stat.loc[stat['info'] == 'test']
     df_val = stat.loc[stat['info'] == 'val']
-    epochs = min(df_train.shape[0], df_test.shape[0], df_val.shape[0])
+    epochs = max(df_train.shape[0], df_test.shape[0], df_val.shape[0])
+    print("epochs: ", epochs)
+    print("df_train shape: ", df_train.shape, "df_train shape[0]: ", df_train.shape[0])
+    print("df_test shape: ", df_test.shape, "df_test shape[0]: ", df_test.shape[0])
     color = ['c', 'm', 'y', 'b', 'g', 'r']
-    idx = -1
+    ind = -1
     linename = []
     for col in columns:
+        print("col: ", col)
         if 'loss' in col:
             continue
         if col not in ['balanced_accuracy', 'mse', 'correlation_coefficient']:
             continue
-        idx += 1
+        ind += 1
         plt.plot(range(1,epochs+1), df_train.loc[:,col], color=color[0])
         plt.plot(range(1,epochs+1), df_val.loc[:,col], color=color[1])
         plt.plot(range(1,epochs+1), df_test.loc[:,col], color=color[2])
         linename.extend([col+'_train', col+'_val', col+'_test'])
     plt.legend(linename, loc='lower right')
     plt.show()
-    plt.savefig(os.path.join(config['ckpt_path'], 'stat.png'))
+    plt.savefig(os.path.join(config['ckpt_path'], idx, 'stat.png'))
     plt.close()
 
-    idx = -1
+    ind = -1
     linename = []
     for col in columns:
         if 'loss' not in col:
             continue
-        idx += 1
+        ind += 1
         # stat_train = df_train.loc[:,col].to_numpy()
         # stat_test = df_test.loc[:,col].to_numpy()
         # loss_train = [float(stat_train[i][7:13]) for i in range(len(df_train))]
         # loss_test = [float(stat_test[i][7:13]) for i in range(len(df_test))]
         # plt.plot(range(1,epochs+1), loss_train, color=color[idx], linestyle='dashed')
         # plt.plot(range(1,epochs+1), loss_test, color=color[idx])
-        plt.plot(range(1,epochs+1), df_train.loc[:,col], color=color[idx], linestyle='dashed')
-        plt.plot(range(1,epochs+1), df_val.loc[:,col], color=color[idx], linestyle='dotted')
-        plt.plot(range(1,epochs+1), df_test.loc[:,col], color=color[idx])
+        plt.plot(range(1,epochs+1), df_train.loc[:,col], color=color[ind], linestyle='dashed')
+        plt.plot(range(1,epochs+1), df_val.loc[:,col], color=color[ind], linestyle='dotted')
+        plt.plot(range(1,epochs+1), df_test.loc[:,col], color=color[ind])
         linename.extend([col+'_train', col+'_val', col+'_test'])
     plt.legend(linename, loc='upper right')
     plt.show()
-    plt.savefig(os.path.join(config['ckpt_path'], 'loss.png'))
+    plt.savefig(os.path.join(config['ckpt_path'], idx, 'loss.png'))
