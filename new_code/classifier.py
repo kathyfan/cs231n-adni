@@ -71,10 +71,11 @@ else:
 print(train_data.shape)
 print(train_data[0].shape)
 train_data = np.reshape(train_data, (2048, 1, 64, 64, 64))
-# testData = DataLoader(test, batch_size = config['batch_size'])
-# trainLabel = DataLoader(train)
+val_data = np.reshape(val_data, (512, 1, 64, 64, 64))
+test_data = np.reshape(test_data, (512, 1, 64, 64, 64))
 
-print("classifier.py: line 76: done loading data")
+
+print("classifier.py: done loading data")
 
 # model
 input_img_size = (config['img_size'][0], config['img_size'][1], config['img_size'][2])
@@ -106,11 +107,11 @@ def train(model, train_data, train_label, val_data, val_label, config):
 
     learning_rates = []
 
-    print("classifier.py: line 108")
+    print("classifier.py: starting training")
     
     for epoch in range(0, config['epochs']):
 
-        print("classifier.py: line 112, epoch #", epoch)
+        print("classifier.py: line 113, epoch ", epoch)
 
         start_time = time.time()
         model.train()
@@ -135,20 +136,18 @@ def train(model, train_data, train_label, val_data, val_label, config):
             train_labels = train_label[idx]
             imgs = torch.from_numpy(train_imgs).to(config['device'], dtype=torch.float)
             labels = torch.from_numpy(train_labels).to(config['device'], dtype=torch.float)
-            print("LABEL SHAPE: ", labels.shape)
-            print("IMG SHAPE: ", imgs.shape)
             iter += 1
 
             # zero the parameter gradients
             optimizer.zero_grad()
 
             # forward pass
+            print("starting forward pass")
             outputs = torch.squeeze(model(imgs))    # to make it be [32] instead of [32,1]
             pred = pred_fn(outputs)
-            print("OUTPUTS: ", outputs.shape)
-            print("pred: ", pred)
 
             # compute loss from data and regularization, and record
+            print("computing loss")
             dloss, rloss = compute_loss(model, loss_cls_fn, config, outputs, labels)
             loss_data += dloss.item()
             loss_reg += rloss.item()
@@ -160,19 +159,20 @@ def train(model, train_data, train_label, val_data, val_label, config):
             losses_total.append(dloss.item()+rloss.item())    
 
             # backward pass
-            print("classifier.py: starting backward pass")
+            print("starting backward pass")
             loss.backward()
             if config['clip_grad']:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config['clip_grad_value'])
 
-            print("classifier.py: finished backward pass")
+            print("finished backward pass")
 
             # optimize
             optimizer.step()
 
             pred_all.append(pred.detach().cpu().numpy())
-            print("classifier.py line 174: pred_all: ", pred.detach().cpu().numpy().shape)
             label_all.append(labels.cpu().numpy())
+
+        print("storing losses")
 
         # mean of total loss, across iterations in this epoch
         loss_mean = loss / iter_per_epoch
@@ -231,7 +231,8 @@ def test(model, testData, loss_cls_fn, pred_fn, config):
     [model], _ = load_checkpoint_by_key([model], config['ckpt_path'], ['model'], config['device'], config['ckpt_name'])
     evaluate(model, testData, loss_cls_fn, pred_fn, config, info='Test')
 
-def evaluate(model, test, test_label, loss_cls_fn, pred_fn, config, info='Default'):
+def evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='Default'):
+    print("evaluating")
     model.eval()
     pred_all = []
     label_all = []
@@ -245,22 +246,33 @@ def evaluate(model, test, test_label, loss_cls_fn, pred_fn, config, info='Defaul
     loss_reg = 0  # running regularization loss
     with torch.no_grad():   # else, the memory explode during model(img)
 
-        for i in range(len(test)):
-            imgs = test.to(config['device'], dtype=torch.float)
-            labels = test_label.to(config['device'], dtype=torch.long)
+        for i in range(2):                                                          ### TODO: change back to range(len(test_data))
+            print("i: ", i) 
+
+            idx_perm = np.random.permutation(int(test_data.shape[0]/2))             # batching the test data
+            idx = idx_perm[:int(config['batch_size']/2)]
+            idx = np.concatenate((idx,idx+int(test_data.shape[0]/2)))
+
+            test_imgs = test_data[idx]
+            test_labels = test_label[idx]
+
+
+            imgs = torch.from_numpy(test_imgs).to(config['device'], dtype=torch.float)
+            labels = torch.from_numpy(test_labels).to(config['device'], dtype=torch.long)
             output = model(imgs)
+            print("test output: ", output.shape)
             pred = pred_fn(output[0])
 
             # compute losses
             dloss, rloss = compute_loss(model, loss_cls_fn, config, output, labels)
             loss_data += dloss.item()
             loss_reg += rloss.item()
-            loss = dloss + rloss
+            loss = dloss.item() + rloss.item()
             loss_total += dloss.item() + rloss.item()
 
-            losses_data.append(dloss)
-            losses_reg.append(rloss)
-            losses_total.append(dloss + rloss)
+            losses_data.append(dloss.item())
+            losses_reg.append(rloss.item())
+            losses_total.append(dloss.item() + rloss.item())
 
             pred_all.append(pred.detach().cpu().numpy())
             label_all.append(labels.cpu().numpy())
@@ -287,4 +299,4 @@ if config['phase'] == 'train':
     train(model, train_data, train_label, val_data, val_label, config)
     save_result_figure(config)
 else:
-    test(model, test, test_label, loss_cls_fn, pred_fn, config)
+    test(model, test_data, test_label, loss_cls_fn, pred_fn, config)
