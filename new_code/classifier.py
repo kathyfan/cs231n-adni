@@ -42,7 +42,7 @@ config['ckpt_name'] = 'model_best.pth.tar'                      # only for testi
 ### TRAIN PARAMETERS ###
 config['batch_size'] = 32
 config['num_fold'] = 5
-config['epochs'] = 60
+config['epochs'] = 2                                            ### TODO: change this back to 60
 config['regularizer'] = 'l2'                                    # can toggle
 config['lambda_reg'] = 0.01                                     # controls how much to regularize
 config['clip_grad'] = True
@@ -125,7 +125,7 @@ def train(model, train_data, train_label, val_data, val_label, config):
         losses_reg = [] # regularization loss history
         loss_reg = 0 # running regularization loss
         
-        for i in range(10):
+        for i in range(2):                                              ### TODO: change this range
             print("classifier.py line 129: ", i)
             idx_perm = np.random.permutation(int(train_data.shape[0]/2))
             idx = idx_perm[:int(config['batch_size']/2)]
@@ -144,33 +144,34 @@ def train(model, train_data, train_label, val_data, val_label, config):
 
             # forward pass
             outputs = torch.squeeze(model(imgs))    # to make it be [32] instead of [32,1]
-            pred = pred_fn(outputs[0])
+            pred = pred_fn(outputs)
             print("OUTPUTS: ", outputs.shape)
+            print("pred: ", pred)
 
             # compute loss from data and regularization, and record
             dloss, rloss = compute_loss(model, loss_cls_fn, config, outputs, labels)
-            print("dloss: ", dloss.shape)
-            print("rloss: ", rloss.shape)
-            print("rloss.item() ", rloss.item())
-            loss_data += dloss
+            loss_data += dloss.item()
             loss_reg += rloss.item()
-            loss = dloss + rloss
-            loss_total += dloss + rloss.item()
+            loss = dloss + rloss                                # needs to be a tensor b/c calling .backward() on this
+            loss_total += dloss.item() + rloss.item()
 
-            losses_data.append(dloss)           
-            losses_reg.append(rloss)
-            losses_total.append(dloss+rloss)    
+            losses_data.append(dloss.item())           
+            losses_reg.append(rloss.item())
+            losses_total.append(dloss.item()+rloss.item())    
 
             # backward pass
-            print("classifier.py: line 165")
+            print("classifier.py: starting backward pass")
             loss.backward()
             if config['clip_grad']:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config['clip_grad_value'])
+
+            print("classifier.py: finished backward pass")
 
             # optimize
             optimizer.step()
 
             pred_all.append(pred.detach().cpu().numpy())
+            print("classifier.py line 174: pred_all: ", pred.detach().cpu().numpy().shape)
             label_all.append(labels.cpu().numpy())
 
         # mean of total loss, across iterations in this epoch
