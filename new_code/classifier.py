@@ -212,7 +212,7 @@ def train(model, train_data, train_label, val_data, val_label, config):
         stat['learning_rates'] = learning_rates
 
         print_result_stat(stat)
-        save_result_stat(stat, epoch, config, info=info)
+        save_result_stat(epoch, stat, config, info=info)
 
         # save ckp of either 1) best epoch 2) every 10th epoch 3) last epoch
         if monitor_metric_best < monitor_metric or epoch % 10 == 1 or epoch == config['epochs']-1:
@@ -258,10 +258,10 @@ def evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='D
 
 
             imgs = torch.from_numpy(test_imgs).to(config['device'], dtype=torch.float)
-            labels = torch.from_numpy(test_labels).to(config['device'], dtype=torch.long)
-            output = model(imgs)
+            labels = torch.from_numpy(test_labels).to(config['device'], dtype=torch.float)
+            output = torch.squeeze(model(imgs))
             print("test output: ", output.shape)
-            pred = pred_fn(output[0])
+            pred = pred_fn(output)
 
             # compute losses
             dloss, rloss = compute_loss(model, loss_cls_fn, config, output, labels)
@@ -288,7 +288,7 @@ def evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='D
     stat['losses_total_hist'] = losses_total
     print_result_stat(stat)
     if info != 'Test': # validation phase
-        save_result_stat(stat, 'val', config, info=info)
+        save_result_stat('val', stat, config, info=info)
     else:
         save_prediction(pred_all, label_all, testData.dataset.label_raw, config)
 
