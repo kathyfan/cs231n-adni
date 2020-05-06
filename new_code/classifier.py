@@ -224,12 +224,12 @@ def train(model, train_data, train_label, val_data, val_label, config):
                     'model': model.state_dict()}
             save_checkpoint(state, is_best, config['ckpt_path'])
 
-def test(model, testData, loss_cls_fn, pred_fn, config):
+def test(model, test_data, test_label, loss_cls_fn, pred_fn, config):
     # Retrieve the trained model to test on
     if not os.path.exists(config['ckpt_path']):
         raise ValueError('Testing phase, no checkpoint folder')
     [model], _ = load_checkpoint_by_key([model], config['ckpt_path'], ['model'], config['device'], config['ckpt_name'])
-    evaluate(model, testData, loss_cls_fn, pred_fn, config, info='Test')
+    evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='Test')
 
 def evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='Default'):
     print("evaluating")
@@ -297,6 +297,6 @@ def evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='D
 
 if config['phase'] == 'train':
     train(model, train_data, train_label, val_data, val_label, config)
-    save_result_figure(config)
+    save_result_figure(config, '1')                                           ### TODO: change 1 to last epoch
 else:
     test(model, test_data, test_label, loss_cls_fn, pred_fn, config)
