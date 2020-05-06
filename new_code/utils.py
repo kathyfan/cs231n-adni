@@ -119,6 +119,8 @@ def save_result_stat(idx, stat, config, info='Default'):
     stat_path = os.path.join(config['ckpt_path'], idx, 'stat.csv')
     columns=['info',] + sorted(stat.keys())
     if not os.path.exists(stat_path):
+        os.mkdir(os.path.join(config['ckpt_path'], idx))        # added path if not already there
+
         df = pd.DataFrame(columns=columns)
         df.to_csv(stat_path, mode='a', header=True)
 
