@@ -151,17 +151,18 @@ def train(model, train_data, train_label, val_data, val_label, config):
             dloss, rloss = compute_loss(model, loss_cls_fn, config, outputs, labels)
             print("dloss: ", dloss.shape)
             print("rloss: ", rloss.shape)
-            loss_data += torch.sum(dloss)
+            print("rloss.item() ", rloss.item())
+            loss_data += dloss
             loss_reg += rloss.item()
             loss = dloss + rloss
-            loss_total += torch.sum(dloss) + rloss.item()
+            loss_total += dloss + rloss.item()
 
-            losses_data.append(dloss)           # TODO: should we be appending torch.sum(dloss) here (batch loss)?
+            losses_data.append(dloss)           
             losses_reg.append(rloss)
-            losses_total.append(dloss+rloss)    # TODO: and here? do we want to append batch loss or per-item loss for the batch?
+            losses_total.append(dloss+rloss)    
 
             # backward pass
-            print("classifier.py: line 164")
+            print("classifier.py: line 165")
             loss.backward()
             if config['clip_grad']:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config['clip_grad_value'])
