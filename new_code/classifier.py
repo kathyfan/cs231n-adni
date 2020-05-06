@@ -212,7 +212,7 @@ def train(model, train_data, train_label, val_data, val_label, config):
         stat['learning_rates'] = learning_rates
 
         print_result_stat(stat)
-        save_result_stat(epoch, stat, config, info=info)
+        save_result_stat(str(epoch), stat, config, info=info)
 
         # save ckp of either 1) best epoch 2) every 10th epoch 3) last epoch
         if monitor_metric_best < monitor_metric or epoch % 10 == 1 or epoch == config['epochs']-1:
