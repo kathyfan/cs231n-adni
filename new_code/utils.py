@@ -100,12 +100,12 @@ def compute_result_stat(pred, label):
     tn = ((pred_bi == label) & (label == 0)).sum()
     fn = ((pred_bi != label) & (label == 1)).sum()
     fp = ((pred_bi != label) & (label == 0)).sum()
-    stat['accuracy'] = 1.* (tp + tn) / num_case
-    stat['sensitivity'] = 1.* tp / (tp + fn)
-    stat['specificity'] = 1.* tn / (tn + fp)
+    stat['accuracy'] = 1.0 * (tp + tn) / num_case
+    stat['sensitivity'] = 1.0 * tp / (tp + fn)
+    stat['specificity'] = 1.0 * tn / (tn + fp)
     stat['balanced_accuracy'] = balanced_accuracy_score(label, pred_bi)
-    stat['precision'] = 1.* tp / (tp + fp)
-    stat['f1'] = 2.* tp / (2.*tp + fp + fn)
+    stat['precision'] = 1.0 * tp / (tp + fp)
+    stat['f1'] = 2.0 * tp / (2.0 * tp + fp + fn)
     fpr, tpr, _ = sklearn.metrics.roc_curve(label, pred)
     stat['auc'] = sklearn.metrics.auc(fpr, tpr)
 
