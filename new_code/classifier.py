@@ -4,7 +4,6 @@ import time
 import torch
 import torch.optim as optim
 import numpy as np
-from torch.utils.data import DataLoader
 
 from model import *
 from utils import *
@@ -68,25 +67,22 @@ if path.exists("test_label_aug.npy"):
 else: 
     train_data, val_data, test_data, train_label, val_label, test_label = get_data()
 
-print(train_data.shape)
-print(train_data[0].shape)
 train_data = np.reshape(train_data, (2048, 1, 64, 64, 64))
 val_data = np.reshape(val_data, (512, 1, 64, 64, 64))
 test_data = np.reshape(test_data, (512, 1, 64, 64, 64))
-
-
 print("classifier.py: done loading data")
+print("train_data shape: ", train_data.shape)
 
 # model
 input_img_size = (config['img_size'][0], config['img_size'][1], config['img_size'][2])
 model = SingleTimestep3DCNN(in_num_ch=1, img_size=input_img_size, inter_num_ch=16, fc_num_ch=16,
                                 conv_act='relu', fc_act='tanh').to(config['device'])
 
-# choose loss functions
+# choose loss and prediction functions
 loss_cls_fn = torch.nn.BCEWithLogitsLoss(reduction='none')
 pred_fn = torch.nn.Sigmoid()
 
-# define optimizer and learnign rate scheduler
+# define optimizer and learning rate scheduler
 optimizer = optim.Adam(model.parameters(), lr=config['lr'])
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=10, min_lr=1e-5)   # dynamic change lr according to val_loss
 
@@ -96,7 +92,6 @@ def train(model, train_data, train_label, val_data, val_label, config):
     if config['pretrained']:
         model = load_pretrained_model(model, config['device'], ckpt_path=config['pretrained_path'])
 
-    iter = 0 # iteration number; cumulative across epochs
     monitor_metric_best = 0
     iter_per_epoch = len(train_data) // config['batch_size']
     print("iter_per_epoch: ", iter_per_epoch)
@@ -119,9 +114,9 @@ def train(model, train_data, train_label, val_data, val_label, config):
 
         pred_all = []
         label_all = []
-        loss = 0 # used for backward pass and average calculation
+        loss = 0 # used for backward pass
         losses_total = [] # total loss history
-        loss_total = 0 # running total loss
+        loss_total = 0 # running total loss and used for average calculation
         losses_data = [] # data loss history
         loss_data = 0 # running data loss
         losses_reg = [] # regularization loss history
@@ -137,15 +132,16 @@ def train(model, train_data, train_label, val_data, val_label, config):
             train_labels = train_label[idx]
             imgs = torch.from_numpy(train_imgs).to(config['device'], dtype=torch.float)
             labels = torch.from_numpy(train_labels).to(config['device'], dtype=torch.float)
-            iter += 1
 
             # zero the parameter gradients
             optimizer.zero_grad()
 
-            # forward pass
+            # forward pass of model, and make predictions
             print("starting forward pass")
             outputs = torch.squeeze(model(imgs))    # to make it be [32] instead of [32,1]
             pred = pred_fn(outputs)
+            pred_all.append(pred.detach().cpu().numpy())
+            label_all.append(labels.cpu().numpy())
 
             # compute loss from data and regularization, and record
             print("computing loss")
@@ -170,26 +166,24 @@ def train(model, train_data, train_label, val_data, val_label, config):
             # optimize
             optimizer.step()
 
-            pred_all.append(pred.detach().cpu().numpy())
-            label_all.append(labels.cpu().numpy())
-
-        print("storing losses")
-
         # mean of total loss, across iterations in this epoch
-        loss_mean = loss / iter_per_epoch
+        loss_mean = loss_total / iter_per_epoch
 
         # store final losses from this epoch
         losses_data_epochs.append(losses_data[-1])
         losses_reg_epochs.append(losses_reg[-1])
         losses_total_epochs.append(losses_total[-1])
 
-        info = 'epoch%03d_iter%06d' % (epoch, iter)
+        info = 'epoch%03d' % (epoch)
         print('Training time for epoch %3d: %3d' % (epoch, time.time() - start_time))
-        print('Epoch: [%3d] Training Results' % (epoch))
+        print('Epoch [%3d]: Training Results' % (epoch))
         pred_all = np.concatenate(pred_all, axis=0)
         label_all = np.concatenate(label_all, axis=0)
         stat = compute_result_stat(pred_all, label_all)
         stat['loss_mean'] = loss_mean
+
+        stat['pred_all'] = pred_all
+        stat['label_all'] = label_all
 
         # these hold the losses of each iteration within this epoch
         # i.e. data here only includes data from the current epoch
@@ -208,7 +202,7 @@ def train(model, train_data, train_label, val_data, val_label, config):
 
         # perform validation for this epoch. Note that the scheduler depends on validation results.
         # validation stats will be printed from inside evaluate()
-        print('Epoch: [%3d] Validation Results' % (epoch))
+        print('Epoch [%3d]: Validation Results' % (epoch))
         monitor_metric = evaluate(model, val_data, val_label, loss_cls_fn, pred_fn, config, info='val')
         monitor_metric = monitor_metric[0] # acc is first and only item in list
         scheduler.step(monitor_metric)
@@ -246,7 +240,6 @@ def evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='D
     iters = len(test_data) // config['batch_size']
     print("iters: ", iters)
 
-    loss = 0  # used for backward pass and average calculation
     losses_total = []  # total loss history
     loss_total = 0  # running total loss
     losses_data = []  # data loss history
@@ -276,7 +269,6 @@ def evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='D
             dloss, rloss = compute_loss(model, loss_cls_fn, config, output, labels)
             loss_data += dloss.item()
             loss_reg += rloss.item()
-            loss = dloss.item() + rloss.item()
             loss_total += dloss.item() + rloss.item()
 
             losses_data.append(dloss.item())
@@ -286,7 +278,7 @@ def evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='D
             pred_all.append(pred.detach().cpu().numpy())
             label_all.append(labels.cpu().numpy())
 
-    loss_mean = loss / (2*(i + 1))
+    loss_mean = loss_total / iters
     print(info, loss_mean)
     pred_all = np.concatenate(pred_all, axis=0)
     label_all = np.concatenate(label_all, axis=0)
@@ -295,6 +287,8 @@ def evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='D
     stat['losses_data_hist'] = losses_data
     stat['losses_reg_hist'] = losses_reg
     stat['losses_total_hist'] = losses_total
+    stat['pred_all'] = pred_all
+    stat['labels_all'] = labels_all
     print_result_stat(stat)
     if info != 'Test': # validation phase
         save_result_stat('val', stat, config, info=info)

@@ -113,7 +113,7 @@ def compute_result_stat(pred, label):
 
 def print_result_stat(stat):
     for key, value in stat.items():
-        print("utils.py line 116: ", key, value)
+        print("Result stats: ", key, value)
 
 def save_result_stat(idx, stat, config, info='Default'):
     stat_path = os.path.join(config['ckpt_path'], idx, 'stat.csv')
@@ -130,6 +130,7 @@ def save_result_stat(idx, stat, config, info='Default'):
     df = pd.DataFrame.from_dict(stat)
     df = df[columns]
     df.to_csv(stat_path, mode='a', header=False)
+    print("Saved result stats to ", stat_path)
 
 def save_prediction(pred, label, label_raw, config):
     if label.shape[0] != label_raw.shape[0]:
