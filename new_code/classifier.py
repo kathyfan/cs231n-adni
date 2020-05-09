@@ -203,16 +203,19 @@ def train(model, train_data, train_label, val_data, val_label, config):
         stat['losses_reg_epochs'] = losses_reg_epochs
         stat['losses_total_epochs'] = losses_total_epochs
 
+        # print training stats (note: does not include learning rate)
+        print_result_stat(stat)
+
         # perform validation for this epoch. Note that the scheduler depends on validation results.
+        # validation stats will be printed from inside evaluate()
         print('Epoch: [%3d] Validation Results' % (epoch))
         monitor_metric = evaluate(model, val_data, val_label, loss_cls_fn, pred_fn, config, info='val')
+        monitor_metric = monitor_metric[0] # acc is first and only item in list
         scheduler.step(monitor_metric)
         lr = optimizer.param_groups[0]['lr']
         print('lr: ', lr)
         learning_rates.append(lr)
         stat['learning_rates'] = learning_rates
-
-        print_result_stat(stat)
         save_result_stat(str(epoch), stat, config, info=info)
 
         # save ckp of either 1) best epoch 2) every 10th epoch 3) last epoch
