@@ -1,5 +1,5 @@
+import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 class FeatureExtractor(nn.Module):
     def __init__(self, in_num_ch=1, inter_num_ch=16, conv_act='relu'):
