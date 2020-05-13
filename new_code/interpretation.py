@@ -1,14 +1,13 @@
 import numpy as np
+import scipy as sp
 
-import utils
+
 from tqdm import tqdm_notebook
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-
-# from interpretation_utils import resize_image # TODO: this file does not exist
 
 
 # ---------------------------- Interpretation methods --------------------------------
@@ -247,7 +246,7 @@ def occlusion(model, image_tensor, target_class=None, size=50, stride=25, occlus
     relevance_map = np.maximum(relevance_map, 0)
 
     if resize:
-        relevance_map = utils.resize_image(relevance_map, image_tensor.shape[1:])
+        relevance_map = resize_image(relevance_map, image_tensor.shape[1:])
 
     return relevance_map
 
@@ -315,6 +314,11 @@ def all_children(model):
     for child in model.children():
         children.extend(all_children(child))
     return children
+
+def resize_image(img, size, interpolation=0):
+    """Resize img to size. Interpolation between 0 (no interpolation) and 5 (maximum interpolation)."""
+    zoom_factors = np.asarray(size) / np.asarray(img.shape)
+    return sp.ndimage.zoom(img, zoom_factors, order=interpolation)
 
 # ----------------------------------- Averages over datasets ---------------
 
