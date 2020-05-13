@@ -290,7 +290,7 @@ def evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='D
     stat['losses_reg_hist'] = losses_reg
     stat['losses_total_hist'] = losses_total
     stat['pred_all'] = pred_all
-    stat['labels_all'] = labels_all
+    stat['label_all'] = label_all
     print_result_stat(stat)
     save_result_stat('val', stat, config, info=info)
 
