@@ -90,3 +90,12 @@ class SingleTimestep3DCNN(nn.Module):
         fc2 = self.fc2(fc1)
         output = self.fc3(fc2)
         return output
+
+def test_SingleTimestep3DCNN():
+    x = torch.zeros((32, 1, 64, 64, 64)) # minibatch size 32, image size (1, 64, 64, 64)
+    model = SingleTimestep3DCNN(in_num_ch=1, img_size=(64, 64, 64), inter_num_ch=16, fc_num_ch=16,
+                                conv_act='relu', fc_act='tanh')
+    scores = model(x)
+    print(scores.size()) # should be (32, 2)
+
+test_SingleTimestep3DCNN()
