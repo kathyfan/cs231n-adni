@@ -132,19 +132,6 @@ def save_result_stat(idx, stat, config, info='Default'):
     df.to_csv(stat_path, mode='a', header=False)
     print("Saved result stats to ", stat_path)
 
-def save_prediction(pred, label, label_raw, config):
-    if label.shape[0] != label_raw.shape[0]:
-        label_raw = np.tile(label_raw, 2)
-    pred_bi = np.where(pred>=0.5, 1, 0)
-    res = np.zeros((4,2))
-    for i in range(4):
-        pred_select = pred_bi[np.where(label_raw==i)]
-        res[i,1] = pred_select.sum()
-        res[i,0] = pred_select.shape[0] - res[i,1]
-    print('Predication Stat for each class')
-    print(res)
-
-
 def save_result_figure(config, idx):
     print("in save_result_figure")
     stat_path = os.path.join(config['ckpt_path'], idx, 'stat.csv')

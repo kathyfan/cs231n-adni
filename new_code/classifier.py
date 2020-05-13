@@ -96,7 +96,8 @@ def train(model, train_data, train_label, val_data, val_label, config):
     iter_per_epoch = len(train_data) // config['batch_size']
     print("iter_per_epoch: ", iter_per_epoch)
 
-    # store final loss from end of each epoch
+    # store initial loss from end of each epoch
+    # provides a summary statistic of loss over epochs
     losses_total_epochs = []
     losses_data_epochs = []
     losses_reg_epochs = []
@@ -123,10 +124,10 @@ def train(model, train_data, train_label, val_data, val_label, config):
         loss_reg = 0 # running regularization loss
         
         for i in range(iter_per_epoch):                                              
-            print("classifier.py line 129: ", i)
-            idx_perm = np.random.permutation(int(train_data.shape[0]/2))
-            idx = idx_perm[:int(config['batch_size']/2)]
-            idx = np.concatenate((idx,idx+int(train_data.shape[0]/2)))
+            print("training (epoch, iter): ", epoch, i)
+            # generate random permutation of training data and take first batch_size indices
+            idx_perm = np.random.permutation(train_data.shape[0])
+            idx = idx_perm[:config['batch_size']]
 
             train_imgs = train_data[idx]
             train_labels = train_label[idx]
@@ -138,14 +139,14 @@ def train(model, train_data, train_label, val_data, val_label, config):
 
             # forward pass of model, and make predictions
             print("starting forward pass")
-            outputs = torch.squeeze(model(imgs))    # to make it be [32] instead of [32,1]
-            pred = pred_fn(outputs)
+            scores = torch.squeeze(model(imgs))    # to make it be [32] instead of [32,1]
+            pred = pred_fn(scores)
             pred_all.append(pred.detach().cpu().numpy())
             label_all.append(labels.cpu().numpy())
 
             # compute loss from data and regularization, and record
             print("computing loss")
-            dloss, rloss = compute_loss(model, loss_cls_fn, config, outputs, labels)
+            dloss, rloss = compute_loss(model, loss_cls_fn, config, scores, labels)
             loss_data += dloss.item()
             loss_reg += rloss.item()
             loss = dloss + rloss                                # needs to be a tensor b/c calling .backward() on this
@@ -191,7 +192,7 @@ def train(model, train_data, train_label, val_data, val_label, config):
         stat['losses_reg_hist'] = losses_reg
         stat['losses_total_hist'] = losses_total
 
-        # these hold the losses of the only last iteration of each epoch, up to the current epoch
+        # these hold the losses of only the last iteration of each epoch, up to the current epoch
         # i.e. data here contains data from all prior epochs as well
         stat['losses_data_epochs'] = losses_data_epochs
         stat['losses_reg_epochs'] = losses_reg_epochs
@@ -200,7 +201,8 @@ def train(model, train_data, train_label, val_data, val_label, config):
         # print training stats (note: does not include learning rate)
         print_result_stat(stat)
 
-        # perform validation for this epoch. Note that the scheduler depends on validation results.
+        # perform validation for this epoch. Note that the scheduler depends on validation results,
+        # so we perform this step before calling the scheduler.
         # validation stats will be printed from inside evaluate()
         print('Epoch [%3d]: Validation Results' % (epoch))
         monitor_metric = evaluate(model, val_data, val_label, loss_cls_fn, pred_fn, config, info='val')
@@ -209,7 +211,7 @@ def train(model, train_data, train_label, val_data, val_label, config):
         lr = optimizer.param_groups[0]['lr']
         print('lr: ', lr)
         learning_rates.append(lr)
-        stat['learning_rates'] = learning_rates
+        stat['learning_rates'] = learning_rates # stat['learning_rates'] hold list of learning rates up to the current epoch
         save_result_stat(str(epoch), stat, config, info=info)
 
         # save ckp of either 1) best epoch 2) every 10th epoch 3) last epoch
@@ -247,26 +249,26 @@ def evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='D
     losses_reg = []  # regularization loss history
     loss_reg = 0  # running regularization loss
     with torch.no_grad():   # else, the memory explode during model(img)
-
         for i in range(iters):                                                          
-            print("i: ", i) 
+            print("evaluating iter= ", i)
 
-            idx_perm = np.random.permutation(int(test_data.shape[0]/2))             # batching the test data
-            idx = idx_perm[:int(config['batch_size']/2)]
-            idx = np.concatenate((idx,idx+int(test_data.shape[0]/2)))
+            # generate random permutation of data and take first batch_size indices
+            idx_perm = np.random.permutation(test_data.shape[0])
+            idx = idx_perm[:config['batch_size']]
 
             test_imgs = test_data[idx]
             test_labels = test_label[idx]
-
-
             imgs = torch.from_numpy(test_imgs).to(config['device'], dtype=torch.float)
             labels = torch.from_numpy(test_labels).to(config['device'], dtype=torch.float)
-            output = torch.squeeze(model(imgs))
-            print("test output: ", output.shape)
-            pred = pred_fn(output)
+
+            # forward pass and make predictions
+            scores = torch.squeeze(model(imgs))
+            if i == 0: # avoid redundancy in printing
+                print("scores.shape: ", scores.shape)
+            pred = pred_fn(scores)
 
             # compute losses
-            dloss, rloss = compute_loss(model, loss_cls_fn, config, output, labels)
+            dloss, rloss = compute_loss(model, loss_cls_fn, config, scores, labels)
             loss_data += dloss.item()
             loss_reg += rloss.item()
             loss_total += dloss.item() + rloss.item()
@@ -279,7 +281,7 @@ def evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='D
             label_all.append(labels.cpu().numpy())
 
     loss_mean = loss_total / iters
-    print(info, loss_mean)
+    print("loss_mean: ", info, loss_mean)
     pred_all = np.concatenate(pred_all, axis=0)
     label_all = np.concatenate(label_all, axis=0)
     stat = compute_result_stat(pred_all, label_all)
@@ -290,11 +292,7 @@ def evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='D
     stat['pred_all'] = pred_all
     stat['labels_all'] = labels_all
     print_result_stat(stat)
-    if info != 'Test': # validation phase
-        save_result_stat('val', stat, config, info=info)
-    else:
-        # save_prediction(pred_all, label_all, testData.dataset.label_raw, config)
-        print("/shrug we dunno what's happening here this should be save_prediction")
+    save_result_stat('val', stat, config, info=info)
 
     acc = stat['accuracy']
     return acc
