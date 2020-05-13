@@ -1,7 +1,6 @@
 import numpy as np
 import nibabel as nib
 import scipy as sp
-import scipy.ndimage
 
 def get_data():
     # Load the data
