@@ -4,11 +4,8 @@ import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import matplotlib.animation
-import os
-import json
 
-import nibabel as nib
+import os
 from scipy.ndimage.interpolation import zoom
 from scipy import ndimage
 
@@ -71,8 +68,6 @@ def plot_slices(struct_arr, num_slices=7, cmap='gray', vmin=None, vmax=None, ove
             if overlay is not None:
                 plt.imshow(sp.ndimage.rotate(np.take(overlay, i_slice, axis=axis), 90), cmap=overlay_cmap, 
                            vmin=overlay_vmin, vmax=overlay_vmax, interpolation=None)
-
-
 
 def resize_image(img, size, interpolation=0):
     """Resize img to size. Interpolation between 0 (no interpolation) and 5 (maximum interpolation)."""

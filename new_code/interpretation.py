@@ -2,24 +2,14 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import numpy as np
 import scipy as sp
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-import pandas as pd
 
 import os
-import utils
 from tqdm import tqdm_notebook
-from sklearn.model_selection import train_test_split
-import multiprocessing
-import json
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
 from torch.autograd import Variable
-from torch.utils.data import Dataset, DataLoader
-import torchvision
 
 from vis_utils import resize_image
 
@@ -71,7 +61,8 @@ def sensitivity_analysis(model, image_tensor, target_class=None, postprocess='ab
     model.zero_grad()
     # output_class = output.max(1)[1].data[0]
     output_class = int(round(output.item()))
-    if verbose: print('Image was classified as', output_class, 'with probability', output.item())
+    if verbose:
+        print('Image was classified as', output_class, 'with probability', output.item())
 
     one_hot_output = torch.zeros((1,2,1))          # one_hot_output = torch.zeros(output.size()); changed since output is single tensor
     if target_class is None:
@@ -79,7 +70,8 @@ def sensitivity_analysis(model, image_tensor, target_class=None, postprocess='ab
     else:
         one_hot_output[0, target_class] = 1
 
-    if verbose: print("one hot output: ", one_hot_output)
+    if verbose:
+        print("one hot output: ", one_hot_output)
 
     if cuda:
         one_hot_output = one_hot_output.cuda()
@@ -186,6 +178,8 @@ def occlusion(model, image_tensor, target_class=None, size=50, stride=25, occlus
     image_tensor = torch.Tensor(image_tensor)  # convert numpy or list to tensor
     if cuda:
         image_tensor = image_tensor.cuda()
+
+    # forward pass
     output = model(Variable(image_tensor[None], requires_grad=False)).cpu()
     if apply_sigmoid:
         output = torch.sigmoid(output)
@@ -263,7 +257,6 @@ def occlusion(model, image_tensor, target_class=None, size=50, stride=25, occlus
     relevance_map = np.maximum(relevance_map, 0)
                     
     if resize:
-        # relevance_map = vis_utils.resize_image(relevance_map, image_tensor.shape[1:])
         relevance_map = resize_image(relevance_map, image_tensor.shape[1:])
                 
     return relevance_map
@@ -292,6 +285,8 @@ def area_occlusion(model, image_tensor, area_masks, target_class=None, occlusion
     image_tensor = torch.Tensor(image_tensor)  # convert numpy or list to tensor
     if cuda:
         image_tensor = image_tensor.cuda()
+
+    # forward pass
     output = model(Variable(image_tensor[None], requires_grad=False))
     if apply_sigmoid:
         output = torch.sigmoid(output)
@@ -427,8 +422,8 @@ def grad_cam(model, image_tensor, target_class=None, last_conv_layer=None, resiz
         #for fm, g, c in zip(store['feature_maps'], store['gradient'], coefficients.flatten()):
         #    if c in sorted(coefficients, reverse=True)[:5]:
                 #print(c)
-                #utils.plot_slices(fm*c, num_slices=3, vmin=vmin, vmax=vmax)
-                #utils.plot_slices(mask, overlay=resize_image(fm, mask.shape)*val_dataset.std+val_dataset.mean, num_slices=3)
+                #vis_utils.plot_slices(fm*c, num_slices=3, vmin=vmin, vmax=vmax)
+                #vis_utils.plot_slices(mask, overlay=resize_image(fm, mask.shape)*val_dataset.std+val_dataset.mean, num_slices=3)
         
         
         cam = np.maximum(cam, 0)
