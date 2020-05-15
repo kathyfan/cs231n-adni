@@ -61,8 +61,14 @@ def sensitivity_analysis(model, image_tensor, target_class=None, postprocess='ab
     model.zero_grad()
     # output_class = output.max(1)[1].data[0]
     output_class = int(round(output.item()))
+
+    if output_class == 1:
+      probability = output.item()
+    else:
+      probability = 1 - output.item()
+    
     if verbose:
-        print('Image was classified as', output_class, 'with probability', output.item())
+        print('Image was classified as', output_class, 'with probability', probability)
 
     one_hot_output = torch.zeros((1,2,1))          # one_hot_output = torch.zeros(output.size()); changed since output is single tensor
     if target_class is None:
@@ -282,6 +288,10 @@ def occlusion(model, image_tensor, target_class=None, size=50, stride=25, occlus
                 
     return relevance_map
 
+
+#################################
+########### NOT USED ############
+#################################
 
 def area_occlusion(model, image_tensor, area_masks, target_class=None, occlusion_value=0, apply_sigmoid=True, cuda=False, verbose=False):
     """
