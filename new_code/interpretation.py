@@ -184,12 +184,20 @@ def occlusion(model, image_tensor, target_class=None, size=50, stride=25, occlus
     if apply_sigmoid:
         output = torch.sigmoid(output)
  
-    output_class = output.max(1)[1].data.numpy()[0]
-    if verbose: print('Image was classified as', output_class, 'with probability', output.max(1)[0].data[0])
+    output_class = int(round(output.item()))
+    if output_class == 1:
+        probability = output.item()
+    else:
+        probability = 1 - output.item()
+    if verbose: print('Image was classified as', output_class, 'with probability', probability)
     if target_class is None:
         target_class = output_class
-    unoccluded_prob = output.data[0, target_class]
-        
+    unoccluded_prob = probability
+    # print("output.shape : ", output.shape)
+    # print("output.data shape: ", output.data.shape)
+    print("unoccluded_prob: ", unoccluded_prob)
+
+
     width = image_tensor.shape[1]
     height = image_tensor.shape[2]
     
@@ -235,10 +243,18 @@ def occlusion(model, image_tensor, target_class=None, size=50, stride=25, occlus
             
                     # TODO: Maybe run this batched.
                     output = model(Variable(image_tensor_occluded[None], requires_grad=False))
+                    print("output shape: ", output.shape)
                     if apply_sigmoid:
                         output = torch.sigmoid(output)
+                    print("output: ", output)
+
+                    if target_class == 1: 
+                      occluded_prob = output.item()
+                    else:
+                      occluded_prob = 1 - output.item()
                     
-                    occluded_prob = output.data[0, target_class]
+                    # occluded_prob = output.data[0, target_class]
+                    print("occluded_prob: ", occluded_prob)
                     relevance_map[i_x, i_y, i_z] = unoccluded_prob - occluded_prob
                     
             else:
@@ -250,8 +266,13 @@ def occlusion(model, image_tensor, target_class=None, size=50, stride=25, occlus
                 output = model(Variable(image_tensor_occluded[None], requires_grad=False))
                 if apply_sigmoid:
                     output = torch.sigmoid(output)
+
+                if target_class == 1: 
+                  occluded_prob = output.item()
+                else:
+                  occluded_prob = 1 - output.item()
                 
-                occluded_prob = output.data[0, target_class]
+                # occluded_prob = output.data[0, target_class]
                 relevance_map[i_x, i_y] = unoccluded_prob - occluded_prob
                 
     relevance_map = np.maximum(relevance_map, 0)
