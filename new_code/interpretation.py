@@ -201,7 +201,7 @@ def occlusion(model, image_tensor, target_class=None, size=50, stride=25, occlus
     unoccluded_prob = probability
     # print("output.shape : ", output.shape)
     # print("output.data shape: ", output.data.shape)
-    print("unoccluded_prob: ", unoccluded_prob)
+    # print("unoccluded_prob: ", unoccluded_prob)
 
 
     width = image_tensor.shape[1]
@@ -249,10 +249,10 @@ def occlusion(model, image_tensor, target_class=None, size=50, stride=25, occlus
             
                     # TODO: Maybe run this batched.
                     output = model(Variable(image_tensor_occluded[None], requires_grad=False))
-                    print("output shape: ", output.shape)
+                    # print("output shape: ", output.shape)
                     if apply_sigmoid:
                         output = torch.sigmoid(output)
-                    print("output: ", output)
+                    # print("output: ", output)
 
                     if target_class == 1: 
                       occluded_prob = output.item()
@@ -260,7 +260,7 @@ def occlusion(model, image_tensor, target_class=None, size=50, stride=25, occlus
                       occluded_prob = 1 - output.item()
                     
                     # occluded_prob = output.data[0, target_class]
-                    print("occluded_prob: ", occluded_prob)
+                    # print("occluded_prob: ", occluded_prob)
                     relevance_map[i_x, i_y, i_z] = unoccluded_prob - occluded_prob
                     
             else:
