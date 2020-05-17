@@ -358,7 +358,7 @@ def area_occlusion(model, image_tensor, area_masks, target_class=None, occlusion
         
         # relevance_map[area_mask.view(image_tensor.shape) == 1] = (unoccluded_prob - occluded_prob)
         relevance_map[area_mask.view(relevance_map.shape) == 1] = unoccluded_prob - occluded_prob
-
+        print(relevance_map)
 
     relevance_map = relevance_map.cpu().numpy()
     relevance_map = np.maximum(relevance_map, 0)
