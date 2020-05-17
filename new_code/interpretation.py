@@ -288,10 +288,6 @@ def occlusion(model, image_tensor, target_class=None, size=50, stride=25, occlus
     return relevance_map
 
 
-#################################
-########### NOT USED ############
-#################################
-
 def area_occlusion(model, image_tensor, area_masks, target_class=None, occlusion_value=0, apply_sigmoid=True, cuda=False, verbose=False):
     """
     Perform brain area occlusion to determine the relevance of each image pixel 
@@ -356,6 +352,11 @@ def area_occlusion(model, image_tensor, area_masks, target_class=None, occlusion
     relevance_map = np.maximum(relevance_map, 0)
     return relevance_map
 
+
+
+#################################
+########### NOT USED ############
+#################################
 
 def all_children(model):
     """Return a list of all child modules of the model, and their children, and their children's children, ..."""
