@@ -179,6 +179,7 @@ def occlusion(model, image_tensor, target_class=None, size=50, stride=25, occlus
     
     if three_d is None:
         three_d = (len(image_tensor.shape) == 4)  # guess if input image is 3D
+    print("three_d: ", three_d)
     
     image_tensor = torch.Tensor(image_tensor)  # convert numpy or list to tensor
     if cuda:
@@ -208,11 +209,15 @@ def occlusion(model, image_tensor, target_class=None, size=50, stride=25, occlus
     
     xs = range(0, width, stride)
     ys = range(0, height, stride)
+
+    print("xs, ys: ", xs, ys)
     
     # TODO: Maybe use torch tensor here.
     if three_d:
         depth = image_tensor.shape[3]
+        print("depth: ", depth)
         zs = range(0, depth, stride)
+        print("zs: ", zs)
         relevance_map = np.zeros((len(xs), len(ys), len(zs)))
     else:
         relevance_map = np.zeros((len(xs), len(ys)))
@@ -316,12 +321,16 @@ def area_occlusion(model, image_tensor, area_masks, target_class=None, occlusion
     output = model(Variable(image_tensor[None], requires_grad=False))
     if apply_sigmoid:
         output = torch.sigmoid(output)
-   
-    output_class = output.max(1)[1].data.cpu().numpy()[0]
-    if verbose: print('Image was classified as', output_class, 'with probability', output.max(1)[0].data[0])
+
+    output_class = int(round(output.item()))
+    if output_class == 1:
+        probability = output.item()
+    else:
+        probability = 1 - output.item()
+    if verbose: print('Image was classified as', output_class, 'with probability', probability)
     if target_class is None:
         target_class = output_class
-    unoccluded_prob = output.data[0, target_class]
+    unoccluded_prob = probability
         
     relevance_map = torch.zeros(image_tensor.shape[1:])
     print("image tensor: ", image_tensor.shape)
@@ -335,17 +344,20 @@ def area_occlusion(model, image_tensor, area_masks, target_class=None, occlusion
         if cuda:
             area_mask = area_mask.cuda()
         image_tensor_occluded = image_tensor * (1 - area_mask).view(image_tensor.shape)
+        # print("area mask: ", area_mask.shape)
+        # print("image_tensor_occ: ", image_tensor_occluded.shape)
         
         output = model(Variable(image_tensor_occluded[None], requires_grad=False))
         if apply_sigmoid:
             output = torch.sigmoid(output)
-            
-        occluded_prob = output.data[0, target_class]
-        # print("area mask: ", area_mask.shape)
-        # print("unoccluded prob: ", unoccluded_prob)
-        # print("occluded prob: ", occluded_prob)
+        
+        if target_class == 1:
+          occluded_prob = output.item()
+        elif target_class == 0:
+          occluded_prob = 1 - output.item()
+        
         # relevance_map[area_mask.view(image_tensor.shape) == 1] = (unoccluded_prob - occluded_prob)
-        relevance_map[area_mask.view(relevance_map.shape) == 1] = (unoccluded_prob - occluded_prob)
+        relevance_map[area_mask.view(relevance_map.shape) == 1] = unoccluded_prob - occluded_prob
 
 
     relevance_map = relevance_map.cpu().numpy()
