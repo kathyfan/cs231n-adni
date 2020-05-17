@@ -51,7 +51,6 @@ def sensitivity_analysis(model, image_tensor, target_class=None, postprocess='ab
         image_tensor = image_tensor.cuda()
     X = Variable(image_tensor[None], requires_grad=True)  # add dimension to simulate batch; (1, 1, 64, 64, 64)
     output = model(X) 
-    print("output: ", output)
     # if apply_softmax:
         # output = F.softmax(output)
     if apply_sigmoid:
@@ -329,6 +328,8 @@ def area_occlusion(model, image_tensor, area_masks, target_class=None, occlusion
     unoccluded_prob = output.data[0, target_class]
         
     relevance_map = torch.zeros(image_tensor.shape[1:])
+    print("image tensor: ", image_tensor.shape)
+    print("relevance map: ", relevance_map.shape)
     if cuda:
         relevance_map = relevance_map.cuda()
         
@@ -344,7 +345,12 @@ def area_occlusion(model, image_tensor, area_masks, target_class=None, occlusion
             output = torch.sigmoid(output)
             
         occluded_prob = output.data[0, target_class]
-        relevance_map[area_mask.view(image_tensor.shape) == 1] = (unoccluded_prob - occluded_prob)
+        print("area mask: ", area_mask.shape)
+        print("unoccluded prob: ", unoccluded_prob)
+        print("occluded prob: ", occluded_prob)
+        # relevance_map[area_mask.view(image_tensor.shape) == 1] = (unoccluded_prob - occluded_prob)
+        relevance_map[area_mask.view(relevance_map.shape) == 1] = (unoccluded_prob - occluded_prob)
+
 
     relevance_map = relevance_map.cpu().numpy()
     relevance_map = np.maximum(relevance_map, 0)
@@ -432,7 +438,7 @@ def grad_cam(model, image_tensor, target_class=None, last_conv_layer=None, resiz
             one_hot_output[0, output_class] = 1
         else:
             one_hot_output[0, target_class] = 1
-        print(one_hot_output)
+        # print(one_hot_output)
         output.backward(gradient=one_hot_output)
         #print(one_hot_output)
         
