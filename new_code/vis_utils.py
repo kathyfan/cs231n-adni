@@ -5,6 +5,7 @@ import scipy as sp
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
+import nibabel as nib
 import os
 from scipy.ndimage.interpolation import zoom
 from scipy import ndimage
@@ -73,3 +74,18 @@ def resize_image(img, size, interpolation=0):
     """Resize img to size. Interpolation between 0 (no interpolation) and 5 (maximum interpolation)."""
     zoom_factors = np.asarray(size) / np.asarray(img.shape)
     return sp.ndimage.zoom(img, zoom_factors, order=interpolation)
+
+
+def load_nifti(file_path, mask=None, z_factor=None, remove_nan=True):
+    """Load a 3D array from a NIFTI file."""
+    img = nib.load(file_path)
+    struct_arr = np.array(img.get_data())
+    
+    if remove_nan:
+        struct_arr = np.nan_to_num(struct_arr)
+    if mask is not None:
+        struct_arr *= mask
+    if z_factor is not None:
+        struct_arr = np.around(zoom(struct_arr, z_factor), 0)
+
+    return struct_arr
