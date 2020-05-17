@@ -345,9 +345,9 @@ def area_occlusion(model, image_tensor, area_masks, target_class=None, occlusion
             output = torch.sigmoid(output)
             
         occluded_prob = output.data[0, target_class]
-        print("area mask: ", area_mask.shape)
-        print("unoccluded prob: ", unoccluded_prob)
-        print("occluded prob: ", occluded_prob)
+        # print("area mask: ", area_mask.shape)
+        # print("unoccluded prob: ", unoccluded_prob)
+        # print("occluded prob: ", occluded_prob)
         # relevance_map[area_mask.view(image_tensor.shape) == 1] = (unoccluded_prob - occluded_prob)
         relevance_map[area_mask.view(relevance_map.shape) == 1] = (unoccluded_prob - occluded_prob)
 
