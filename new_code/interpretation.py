@@ -212,14 +212,14 @@ def occlusion(model, image_tensor, target_class=None, size=50, stride=25, occlus
     xs = range(0, width, stride)
     ys = range(0, height, stride)
 
-    print("xs, ys: ", xs, ys)
+    # print("xs, ys: ", xs, ys)
     
     # TODO: Maybe use torch tensor here.
     if three_d:
         depth = image_tensor.shape[3]
-        print("depth: ", depth)
+        # print("depth: ", depth)
         zs = range(0, depth, stride)
-        print("zs: ", zs)
+        # print("zs: ", zs)
         relevance_map = np.zeros((len(xs), len(ys), len(zs)))
     else:
         relevance_map = np.zeros((len(xs), len(ys)))
@@ -360,7 +360,7 @@ def area_occlusion(model, image_tensor, area_masks, target_class=None, occlusion
         
         # relevance_map[area_mask.view(image_tensor.shape) == 1] = (unoccluded_prob - occluded_prob)
         relevance_map[area_mask.view(relevance_map.shape) == 1] = unoccluded_prob - occluded_prob
-        print(relevance_map)
+        # print(relevance_map)
 
     relevance_map = relevance_map.cpu().numpy()
     relevance_map = np.maximum(relevance_map, 0)
