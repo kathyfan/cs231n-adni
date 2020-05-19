@@ -137,7 +137,7 @@ def guided_backprop(model, image_tensor, target_class=None, postprocess='abs', a
                         hook_handles.append(hook_handle)
 
         # Calculate backprop with modified ReLUs.
-        relevance_map = sensitivity_analysis(model, image_tensor, target_class=target_class, postprocess=postprocess, apply_sigmoid=apply_sigmoid, cuda=cuda, verbose=verbose)
+        relevance_map = sensitivity_analysis(model, image_tensor, target_class=target_class, postprocess=postprocess, apply_sigmoid=True, cuda=cuda, verbose=verbose)
         
     finally:
         # Remove hooks from model.
