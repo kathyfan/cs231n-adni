@@ -7,8 +7,6 @@ class FeatureExtractor(nn.Module):
 
         if conv_act == 'relu':
             conv_act_layer = nn.ReLU(inplace=True)
-        elif activation == 'leaky_relu':
-            conv_act_layer = nn.LeakyReLU(0.2, inplace=True)
         else:
             raise ValueError('No implementation of ', conv_act)
 
