@@ -75,7 +75,7 @@ def get_data():
     val_data_aug = np.concatenate((val_data_neg_aug, val_data_pos_aug), axis=0)
     print("data.py: line 77")
     val_label_aug = np.zeros((augment_size_val * 2,))
-    val_label_aug[augment_size:] = 1
+    val_label_aug[augment_size_val:] = 1
 
     test_data_pos = test_data[test_label==1]
     test_data_neg = test_data[test_label==0]
