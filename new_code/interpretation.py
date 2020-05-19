@@ -129,10 +129,12 @@ def guided_backprop(model, image_tensor, target_class=None, postprocess='abs', a
     try:
         # Loop through layers, hook up ReLUs with relu_hook_function, store handles to hooks.
         for module in model.children():
-            if isinstance(module, layer_to_hook):
-                if verbose: print('Registered hook for layer:', module)
-                hook_handle = module.register_backward_hook(relu_hook_function)
-                hook_handles.append(hook_handle)
+            for sub in module.children():
+                for layer in sub.children():
+                    if isinstance(layer, layer_to_hook):
+                        if verbose: print('Registered hook for layer:', layer)
+                        hook_handle = layer.register_backward_hook(relu_hook_function)
+                        hook_handles.append(hook_handle)
 
         # Calculate backprop with modified ReLUs.
         relevance_map = sensitivity_analysis(model, image_tensor, target_class=target_class, postprocess=postprocess, apply_sigmoid=apply_sigmoid, cuda=cuda, verbose=verbose)
