@@ -15,6 +15,7 @@ class FeatureExtractor(nn.Module):
                         conv_act_layer,
                         nn.BatchNorm3d(inter_num_ch),
                         nn.MaxPool3d(2))
+        # output of conv1: images scaled to (32, 32, 32)
 
         self.conv2 = nn.Sequential(
                         nn.Conv3d(inter_num_ch, 2*inter_num_ch, kernel_size=3, padding=1),
@@ -22,6 +23,7 @@ class FeatureExtractor(nn.Module):
                         nn.BatchNorm3d(2*inter_num_ch),
                         nn.MaxPool3d(2),
                         nn.Dropout3d(0.1))
+        # output of conv2: images scaled to (16, 16, 16)
 
         self.conv3 = nn.Sequential(
                         nn.Conv3d(2*inter_num_ch, 4*inter_num_ch, kernel_size=3, padding=1),
@@ -29,12 +31,14 @@ class FeatureExtractor(nn.Module):
                         nn.BatchNorm3d(4*inter_num_ch),
                         nn.MaxPool3d(2),
                         nn.Dropout3d(0.1))
+        # output of conv3: images scaled to (8, 8, 8)
 
         self.conv4 = nn.Sequential(
                         nn.Conv3d(4*inter_num_ch, inter_num_ch, kernel_size=3, padding=1),
                         conv_act_layer,
                         nn.BatchNorm3d(inter_num_ch),
                         nn.MaxPool3d(2))
+        # output of conv4: images scaled to (4, 4, 4)
 
     def forward(self, x):
         conv1 = self.conv1(x)

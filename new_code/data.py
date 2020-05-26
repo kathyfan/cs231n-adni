@@ -1,6 +1,37 @@
 import numpy as np
 import nibabel as nib
 import scipy as sp
+import csv
+
+# get ages of images corresponding to data in fold
+def get_ages(fold=3):
+    reader = csv.DictReader(open("../metadata/ADNI1AND2.csv"))
+
+    # dedup csv based on subject_id. create a dictionary so that we don't
+    # have to loop through redundant csv later.
+    ids = set()
+    items = {}
+    for row in reader:
+        if row['Subject_ID'] not in ids:
+            items['Subject_ID'] = row['Age']
+            ids.add(row['Subject_ID'])
+
+    # load image names
+    file_idx = np.genfromtxt('./subjects_idx.txt', dtype='str')
+    # load fold indices
+    fold_idx = np.loadtxt('fold.txt')
+    want_idx = (fold_idx == fold)
+    ages = np.zeros_like(want_idx) # empty list
+
+    for i in want_idx:
+        name_full = file_idx[i]
+        name_short = name_full[:9] # first 10 characters
+
+        # look in dictionary to match row with name_short and extract age
+        for k, v in items:
+            if k == name_short:
+                ages[i] = v
+    return ages
 
 def get_data():
     # Load the data
