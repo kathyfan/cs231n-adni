@@ -71,6 +71,8 @@ def get_test_data_unaugmented():
 
 test_data, test_label = get_test_data_unaugmented()
 print(test_data.shape, test_label.shape)
+np.save("test_data", test_data)
+np.save("test_label", test_label)
 
 def get_data():
     # Load the data
