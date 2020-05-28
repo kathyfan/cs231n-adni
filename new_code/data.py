@@ -4,7 +4,7 @@ import scipy as sp
 import csv
 
 # get ages of images corresponding to data in fold
-def get_ages(fold=3):
+def get_ages(fold=4):
     reader = csv.DictReader(open("../metadata/ADNI1AND2.csv"))
 
     # dedup csv based on subject_id. create a dictionary so that we don't
@@ -32,6 +32,45 @@ def get_ages(fold=3):
             if k == name_short:
                 ages[i] = v
     return ages
+
+def get_test_data_unaugmented():
+    # Load the data
+    file_idx = np.genfromtxt('./subjects_idx.txt', dtype='str')
+    fold_idx = np.loadtxt('fold.txt')                   # to keep same-patient images together
+    label = np.loadtxt('dx.txt')
+    np.random.seed(seed=0)
+
+    subject_num = file_idx.shape[0]
+
+    # Only use a patch from each input image
+    patch_x = 64
+    patch_y = 64
+    patch_z = 64
+    min_x = 0
+    min_y = 0
+    min_z = 0
+    i = 0
+
+    data = np.zeros((subject_num, patch_x, patch_y, patch_z,1))
+
+    for img_idx in file_idx:
+        filename_full = '/Users/elissali/Documents/GitHub/cs231n-adni/data/' + img_idx
+        # '/fs/neurosci01/qingyuz/3dcnn/ADNI/img_64_longitudinal/'
+        img = nib.load(filename_full)
+        img_data = img.get_fdata()
+
+        data[i,:,:,:,0] = img_data[min_x:min_x+patch_x, min_y:min_y+patch_y, min_z:min_z+patch_z]
+        data[i,:,:,:,0] = (data[i,:,:,:,0] - np.mean(data[i,:,:,:,0])) / np.std(data[i,:,:,:,0])
+        i += 1
+
+    test_idx = (fold_idx == 4)
+    test_data = data[test_idx]
+    test_label = label[test_idx]
+
+    return test_data, test_label
+
+test_data, test_label = get_test_data_unaugmented()
+print(test_data.shape, test_label.shape)
 
 def get_data():
     # Load the data
