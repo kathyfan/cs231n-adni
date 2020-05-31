@@ -86,11 +86,11 @@ def sensitivity_analysis(model, image_tensor, target_class=None, postprocess='ab
     
     # Postprocess the relevance map.
     if postprocess == 'abs':  # as in Simonyan et al. (2014)
-        return np.abs(relevance_map)
+        return np.abs(relevance_map), output_class, probability
     elif postprocess == 'square':  # as in Montavon et al. (2018)
-        return relevance_map**2
+        return relevance_map**2, output_class, probability
     elif postprocess is None:
-        return relevance_map
+        return relevance_map, output_class, probability
         
         
 def guided_backprop(model, image_tensor, target_class=None, postprocess='abs', apply_sigmoid=True, cuda=False, verbose=False):

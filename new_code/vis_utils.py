@@ -70,6 +70,8 @@ def plot_slices(struct_arr, num_slices=7, cmap='gray', vmin=None, vmax=None, ove
                 plt.imshow(sp.ndimage.rotate(np.take(overlay, i_slice, axis=axis), 90), cmap=overlay_cmap, 
                            vmin=overlay_vmin, vmax=overlay_vmax, interpolation=None)
 
+    return vmin, vmax, overlay_vmin, overlay_vmax
+
 def resize_image(img, size, interpolation=0):
     """Resize img to size. Interpolation between 0 (no interpolation) and 5 (maximum interpolation)."""
     zoom_factors = np.asarray(size) / np.asarray(img.shape)
