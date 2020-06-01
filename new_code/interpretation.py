@@ -51,6 +51,7 @@ def sensitivity_analysis(model, image_tensor, target_class=None, postprocess='ab
         image_tensor = image_tensor.cuda()
     X = Variable(image_tensor[None], requires_grad=True)  # add dimension to simulate batch; (1, 1, 64, 64, 64)
     output = model(X) 
+    print(output, output.shape)
     # if apply_softmax:
         # output = F.softmax(output)
     if apply_sigmoid:
