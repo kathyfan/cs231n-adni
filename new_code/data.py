@@ -56,6 +56,17 @@ def nb_get_ages(fold=4):
     np.save("ages", ages)
     return ages
 
+def merge_dicts(dict_A, dict_B):
+  dict_res = {}
+  for k, v in dict_A.items():
+    dict_res[k] = v
+  for k, v in dict_B.items():
+    if k in dict_res:
+      dict_res[k] += v
+    else:
+      dict_res[k] = v
+
+  return dict_res
 def get_test_data_unaugmented():
     # Load the data
     file_idx = np.genfromtxt('./subjects_idx.txt', dtype='str')
