@@ -54,7 +54,8 @@ def get_test_data_unaugmented():
     data = np.zeros((subject_num, patch_x, patch_y, patch_z,1))
 
     for img_idx in file_idx:
-        filename_full = '/Users/elissali/Documents/GitHub/cs231n-adni/data/' + img_idx
+        filename_full = '/home/kathyzfan/cs231n-adni/data/' + img_idx
+        #filename_full = '/Users/elissali/Documents/GitHub/cs231n-adni/data/' + img_idx
         # '/fs/neurosci01/qingyuz/3dcnn/ADNI/img_64_longitudinal/'
         img = nib.load(filename_full)
         img_data = img.get_fdata()
@@ -69,10 +70,10 @@ def get_test_data_unaugmented():
 
     return test_data, test_label
 
-test_data, test_label = get_test_data_unaugmented()
-print(test_data.shape, test_label.shape)
-np.save("test_data", test_data)
-np.save("test_label", test_label)
+#test_data, test_label = get_test_data_unaugmented()
+#print(test_data.shape, test_label.shape)
+#np.save("test_data", test_data)
+#np.save("test_label", test_label)
 
 def get_data():
     # Load the data
