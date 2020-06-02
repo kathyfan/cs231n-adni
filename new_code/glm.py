@@ -4,7 +4,8 @@ import statsmodels.api as sm
 from matplotlib import pyplot as plt
 import model, data
 
-
+test_data = np.load("test_data.npy")
+test_labels = np.load("test_label.npy")
 img_size = 4 # output of last maxpool3d layer: images of (4, 4, 4)
 n_filters = 16 # 16 filters in last conv layer
 n_feat = img_size*img_size*img_size*n_filters # number of features after flattening
