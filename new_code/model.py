@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 class FeatureExtractor(nn.Module):
     def __init__(self, in_num_ch=1, inter_num_ch=16, conv_act='relu'):
         super(FeatureExtractor, self).__init__()
@@ -137,7 +138,7 @@ class Confounder3DCNN(nn.Module):
         self.num_cls = 2
         fc_act_layer = nn.Tanh()
         
-        self.binmask = model.BinaryMask(1024, mask)
+        self.binmask = BinaryMask(1024, mask)
 
         self.fc1 = net.fc1    # use fc1 from existing model
         self.fc2 = net.fc2    # use fc2 from existing model
