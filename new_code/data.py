@@ -4,33 +4,56 @@ import scipy as sp
 import csv
 
 # get ages of images corresponding to data in fold
-def get_ages(fold=4):
-    reader = csv.DictReader(open("../metadata/ADNI1AND2.csv"))
+def nb_get_ages(fold=4):
+    reader = csv.DictReader(open("../metadata/ADNIMERGE.csv"))
 
-    # dedup csv based on subject_id. create a dictionary so that we don't
-    # have to loop through redundant csv later.
-    ids = set()
+    # create a dict of just name and date, so we don't have to loop through
+    # entire csv later.
     items = {}
     for row in reader:
-        if row['Subject_ID'] not in ids:
-            items['Subject_ID'] = row['Age']
-            ids.add(row['Subject_ID'])
+        ptid = row['PTID']
+        #date = row['EXAMDATE']
+        #key = ptid + "-" + date
+        #items[key] = row['AGE']
+        try:
+            age = float(row['AGE'])
+            items[ptid] = age
+        except ValueError:
+            print("cannot convert " + row['AGE'])
+        
+    #print(items)
 
     # load image names
-    file_idx = np.genfromtxt('./subjects_idx.txt', dtype='str')
+    file_idx = np.genfromtxt('subjects_idx.txt', dtype='str')
     # load fold indices
     fold_idx = np.loadtxt('fold.txt')
     want_idx = (fold_idx == fold)
-    ages = np.zeros_like(want_idx) # empty list
+    ages = np.zeros(251) # empty list
+    print("number of examples: ", len(want_idx))
 
-    for i in want_idx:
-        name_full = file_idx[i]
-        name_short = name_full[:9] # first 10 characters
+    unmatched = 0
+    idx = 0
+    for i in range(len(want_idx)):
+        if want_idx[i]:
+            name_full = file_idx[i] # format: 002_S_0295-2006-04-18_08_20_30.0.nii.gz
+            name_ptid = name_full[:10] # first 10 characters, ex 002_S_0295
+            #name_date = name_full[11:21] # ex 2006-04-18
+            #name_key = name_full[:21] # subject + date, since age changes over time
+            name_key = name_ptid
 
-        # look in dictionary to match row with name_short and extract age
-        for k, v in items:
-            if k == name_short:
-                ages[i] = v
+            # look in dictionary to get age
+            if name_key in items:
+                ages[idx] = items[name_key]
+                #print("ages[idx] = items[name_key]: " + str(idx) + " " + str(items[name_key]))
+            else:
+                unmatched += 1
+                ages[idx] = -1
+                print("no key for " + name_key)
+            idx += 1
+
+    print("number of unmatched examples: " + str(unmatched))
+    print(ages)
+    np.save("ages", ages)
     return ages
 
 def get_test_data_unaugmented():
