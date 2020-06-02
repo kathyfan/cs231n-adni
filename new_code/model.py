@@ -119,7 +119,7 @@ class BinaryMask(nn.Module):
 # trained checkpoint must exist and be in the expected path 
 # https://discuss.pytorch.org/t/insert-new-layer-in-the-middle-of-a-pre-trained-model/12414/5
 class Confounder3DCNN(nn.Module):
-    def __init__(self, mask=mask, in_num_ch=1, img_size=(32,64,64), inter_num_ch=16, fc_num_ch=16,
+    def __init__(self, mask, in_num_ch=1, img_size=(32,64,64), inter_num_ch=16, fc_num_ch=16,
                 conv_act='relu', fc_act='tanh'):
         super(Confounder3DCNN, self).__init__()
         
