@@ -138,7 +138,7 @@ def guided_backprop(model, image_tensor, target_class=None, postprocess='abs', a
                         hook_handles.append(hook_handle)
 
         # Calculate backprop with modified ReLUs.
-        relevance_map = sensitivity_analysis(model, image_tensor, target_class=target_class, postprocess=postprocess, apply_sigmoid=apply_sigmoid, cuda=cuda, verbose=verbose)
+        relevance_map, output_class, probability = sensitivity_analysis(model, image_tensor, target_class=target_class, postprocess=postprocess, apply_sigmoid=apply_sigmoid, cuda=cuda, verbose=verbose)
         
     finally:
         # Remove hooks from model.
@@ -148,7 +148,7 @@ def guided_backprop(model, image_tensor, target_class=None, postprocess='abs', a
             hook_handle.remove()
             del hook_handle
         
-    return relevance_map
+    return relevance_map, output_class, probability
 
 
 def occlusion(model, image_tensor, target_class=None, size=50, stride=25, occlusion_value=0, apply_sigmoid=True, three_d=None, resize=True, cuda=False, verbose=False):
@@ -293,7 +293,7 @@ def occlusion(model, image_tensor, target_class=None, size=50, stride=25, occlus
     if resize:
         relevance_map = resize_image(relevance_map, image_tensor.shape[1:])
                 
-    return relevance_map
+    return relevance_map, output_class, probability
 
 
 def area_occlusion(model, image_tensor, area_masks, target_class=None, occlusion_value=0, apply_sigmoid=True, cuda=False, verbose=False):
@@ -365,7 +365,7 @@ def area_occlusion(model, image_tensor, area_masks, target_class=None, occlusion
 
     relevance_map = relevance_map.cpu().numpy()
     relevance_map = np.maximum(relevance_map, 0)
-    return relevance_map
+    return relevance_map, output_class, probability
 
 
 
