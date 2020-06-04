@@ -46,7 +46,7 @@ def perform_glm():
     num_error = 0
     feat_errored = []
     for i in range(n_feat):
-#         print("i: ", i)
+        print("i: ", i)
         X = np.zeros((n_samples, 3))
         X[:,0] = labels
         X[:, 1] = cf
@@ -67,10 +67,21 @@ def perform_glm():
 
     # calculate mask based on p values
     mask = (p[:,1]<0.05)
+    num_masked = 0
+    feat_masked = []
+    for i in range(n_feat):
+        if mask[i]:
+            num_masked += 1
+            feat_masked.append(i)
 #     plt.imshow([mask[900:1000]])
 #     plt.title("Feature mask (yellow = confounded by cf)")
     
+    print("numbered of masked features: ", num_masked)
+    print("list of masked features: i = ")
+    print(feat_masked)
     print("numbered of errored features: ", num_error)
     print("list of errors: i = ")
     print(feat_errored)
     return mask
+
+#perform_glm()
