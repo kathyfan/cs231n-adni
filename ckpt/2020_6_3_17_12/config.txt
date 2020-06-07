@@ -1,0 +1,19 @@
+phase: test
+gpu: 0,1
+device: cpu
+ckpt_timelabel: None
+ckpt_path: ../ckpt/2020_6_3_17_12
+img_size: (64, 64, 64)
+ckpt_name: epoch010.pth.tar
+batch_size: 32
+num_fold: 5
+epochs: 40
+regularizer: l2
+lambda_reg: 0.01
+clip_grad: True
+clip_grad_value: 1.0
+lr: 0.001
+static_fe: False
+pretrained: False
+pretrained_path: None
+continue_train: False
