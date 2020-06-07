@@ -36,19 +36,19 @@ if not os.path.exists(config['ckpt_path']):
 config['img_size'] = (64, 64, 64)
 
 ### TEST PARAMETERS ###
-# config['ckpt_name'] = 'model_best.pth.tar'                      # only for testing ...      'epoch041.pth.tar'
-config['ckpt_name'] = 'epoch010.pth.tar'
+config['ckpt_name'] = 'model_best.pth.tar'                      # only for testing ...      'epoch041.pth.tar'
+# config['ckpt_name'] = 'epoch010.pth.tar'
 
 
 ### TRAIN PARAMETERS ###
 config['batch_size'] = 32
 config['num_fold'] = 5
-config['epochs'] = 60                                            
+config['epochs'] = 40 
 config['regularizer'] = 'l2'                                    # can toggle
 config['lambda_reg'] = 0.01                                     # controls how much to regularize
 config['clip_grad'] = True
 config['clip_grad_value'] = 1.
-config['lr'] = 0.0005                                           # can toggle
+config['lr'] = 0.001  # can toggle
 
 ### NOT ACTIVELY USED / TURNED OFF ###
 config['static_fe'] = False
@@ -231,7 +231,7 @@ def test(model, test_data, test_label, loss_cls_fn, pred_fn, config):
     if not os.path.exists(config['ckpt_path']):
         raise ValueError('Testing phase, no checkpoint folder')
     # [model], _ = load_checkpoint_by_key([model], config['ckpt_path'], ['model'], config['device'], config['ckpt_name'])
-    [model], _ = load_checkpoint_by_key([model], '../ckpt/2020_5_18_16_42', ['model'], config['device'], config['ckpt_name'])
+    [model], _ = load_checkpoint_by_key([model], '../ckpt/2020_6_3_2_16/', ['model'], config['device'], config['ckpt_name'])
 
     evaluate(model, test_data, test_label, loss_cls_fn, pred_fn, config, info='Test')
 
