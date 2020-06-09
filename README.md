@@ -1,6 +1,38 @@
 # cs231n-adni
-Course project for CS231N - investigating interpretability and visualization of CNNs on ADNI dataset.
+Course project for CS231N - Visualizing CNNs for Interpretable Alzheimer's Diagnosis Through Neuroimaging
 
+Project members: Zi Ying (Kathy) Fan, Elissa Li, Darian Martos
+
+# Viewer Guide
+## Repo structure
+Here is a summary of each directory:
+* ckpt: checkpoint files from training (may include: trained weights, stats, config)
+* code: starter code provided by Qingyu Zhao
+* data: pre-processed ADNI dataset images
+* figures: graphs and results from this project
+* metadata: additional info attached to dataset, and AAL brain areas
+* new_code: code developed for the purposes of this project
+* reports: pdf versions of milestone and final reports
+
+The directory of most interest should be new_code. Below is a summary of the most relevant files:
+* baseline_vis.ipynb: runs baseline visualization methods over test set
+* confounder_vis.ipynb: runs confounder-aware technique on top of baseline methods, over test set
+* classifier.py: main code for training binary classification CNN model
+
+The most important helper files are:
+* data.py, dx.txt, fold.txt, subjects_idx.txt: files used for data-processing and partitioning into train, val, test sets
+* glm.py: contains code for performing stats test with general linear model, in order to use the confounder-aware technique
+* model.py: contains pytorch modules for the baseline classification model, as well as modified model that can be used with the confounder-aware technique
+* interpretation.py: code for baseline visualization methods
+* utils.py, vis_utils.py: various utility functions to calculate accuracies, plot saliency maps, etc.
+
+The following files are deprecated and should not be of interest:
+* bitmask.py
+* glm.ipynb
+* occlusion_backprop_vis.ipynb
+* plot.py
+
+# Dev Guide
 ## GCP
 ### Specs/How-to
 Project name: CS231N-ADNI
